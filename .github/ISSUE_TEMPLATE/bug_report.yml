@@ -1,0 +1,44 @@
+name: Relatar um problema
+description: Informe um erro de documentação ou de comportamento já disponível.
+title: "[Problema] "
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Use dados fictícios ou anonimizados. Confira anexos e metadados antes de enviar.
+        Para vulnerabilidades ou exposição de dados, siga SECURITY.md.
+        Se precisar combinar um canal privado, envie apenas uma solicitação genérica pela opção de issue em branco.
+  - type: textarea
+    id: problema
+    attributes:
+      label: Qual é o problema?
+      description: Indique o arquivo ou recurso afetado e o que você observou.
+    validations:
+      required: true
+  - type: textarea
+    id: reproducao
+    attributes:
+      label: Como encontrar ou reproduzir?
+      description: Informe os passos ou o trecho da documentação. Use um exemplo fictício quando necessário.
+    validations:
+      required: true
+  - type: textarea
+    id: esperado
+    attributes:
+      label: Qual era o resultado esperado?
+    validations:
+      required: true
+  - type: textarea
+    id: contexto
+    attributes:
+      label: Contexto e referências
+      description: Inclua a versão ou referência afetada, se houver. Para correções jurídicas, informe fontes oficiais e data da consulta.
+    validations:
+      required: false
+  - type: checkboxes
+    id: privacidade
+    attributes:
+      label: Conferência de privacidade
+      options:
+        - label: Conferi que o texto e os anexos não expõem dados pessoais, documentos sigilosos ou credenciais.
+          required: true
