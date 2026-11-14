@@ -4,7 +4,7 @@ Esta política cobre vulnerabilidades do projeto e exposição de credenciais, d
 
 ## Estado atual
 
-O Juriswany está em estruturação e ainda não tem versões publicadas. A análise de relatos considera o conteúdo atual da branch principal. Não há compromisso de suporte a versões ou prazo garantido de resposta nesta etapa.
+A análise de relatos considera a skill e o utilitário local disponíveis na branch principal. Não há compromisso de suporte a versões antigas ou prazo garantido de resposta nesta etapa.
 
 ## Relate de forma reservada
 

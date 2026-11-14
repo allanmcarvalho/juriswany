@@ -1,6 +1,6 @@
 # Como contribuir com o Juriswany
 
-O Juriswany está na etapa de estruturação. Você pode contribuir com correções de documentação, sugestões de fluxos jurídicos e propostas de futuras skills.
+Você pode contribuir com melhorias da skill, correções de documentação, fluxos jurídicos e manutenção do utilitário local.
 
 ## Prepare a contribuição
 
@@ -42,7 +42,15 @@ Ao usar assistência de IA, revise o resultado e descreva no pull request qualqu
 - Remova dados pessoais, segredos e arquivos locais sem relação com a mudança.
 - Informe como verificou a alteração. Para documentação, a leitura e a conferência dos links podem ser suficientes.
 
-Ainda não há aplicação, processo de build ou suíte de testes neste repositório.
+Para alterações no utilitário local, execute os testes com Python 3.9 ou superior:
+
+```sh
+python3 -m unittest discover -s tests -v
+```
+
+Use destinos de instalação temporários e configure `XDG_CONFIG_HOME` e `XDG_CACHE_HOME` para diretórios temporários. Preserve suas instalações e preferências reais.
+
+Para alterações nas instruções, experimente um pedido fictício com os recursos que a mudança declara suportar. Confira a entrega real. Em modo econômico, verifique que o agente não inventa delegação, pesquisa ou persistência.
 
 ## Licença das contribuições
 

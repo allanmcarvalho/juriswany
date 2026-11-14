@@ -2,9 +2,11 @@
 
 ## Propósito e etapa atual
 
-O Juriswany é um futuro agente personalizado e repositório de skills para a rotina do Direito brasileiro. O [README](README.md) registra o escopo e o estado atual.
+O Juriswany é uma skill de secretaria jurídica para a rotina do Direito brasileiro. O [README](README.md) registra o escopo e o estado atual.
 
-Nesta etapa, o repositório contém a base documental e a identidade visual. Não presuma que existam skills, integrações, comandos de instalação ou testes de aplicação.
+O pacote instalável fica em `skills/juriswany`. `scripts/local.py`, dentro do pacote, cuida da instalação, do perfil e da consulta de atualizações. As rotinas jurídicas são instruções executadas pelo agente que carrega a skill.
+
+Não presuma ferramentas ou disponibilidade de modelos pelo nome de um plano. Preserve o modo econômico e a execução sem subagentes. A skill não pode depender do poteto-mode nem de caminhos pessoais do desenvolvedor.
 
 ## Identidade
 
@@ -20,6 +22,9 @@ Nesta etapa, o repositório contém a base documental e a identidade visual. Nã
 - Diferencie objetivos futuros de funcionalidades disponíveis.
 - Confira os arquivos reais, os links e a formatação antes de declarar a tarefa concluída.
 - Descreva o que verificou e qualquer limitação relevante. Não afirme ter executado uma verificação que não ocorreu.
+- Para mudanças no utilitário, execute `python3 -m unittest discover -s tests -v`. Use destinos e diretórios XDG temporários nas verificações. Não altere instalações ou perfis reais sem pedido.
+- Mantenha o perfil separado da instalação e do cache. Não inclua dados de casos no perfil.
+- Ao mudar comandos ou formatos de dados, atualize instruções, exemplos e testes que dependem do comportamento afetado.
 
 ## Conteúdo e exemplos jurídicos
 
