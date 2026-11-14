@@ -1,6 +1,6 @@
 ---
 name: juriswany
-description: Apoia a rotina do Direito brasileiro na análise de documentos, pesquisa de fontes oficiais, comparação de teses e preparação e revisão de minutas. Use também para planejar, explicar ou retomar um caso com o Juriswany.
+description: Secretaria para o Direito brasileiro. Use o Juriswany para analisar documentos, pesquisar, redigir e revisar peças, comparar teses, planejar e retomar casos, configurar preferências ou atualizar esta skill.
 license: MIT
 ---
 
@@ -25,7 +25,7 @@ O único nome de skill é `juriswany`. No Codex, use `$juriswany revisar`. No Cl
 | `retomar` | Use a conversa ou o resumo que a pessoa trouxe. Recupere objetivo, material e versões, achados verificados, decisões e razões, pendências e próxima ação. Confira o trecho decisivo se o documento mudou ou a conclusão herdada for indispensável. Prossiga do ponto alcançado. |
 | `explicar` | Ajuste o vocabulário ao leitor. Diga a consequência prática, a condição da qual depende e a dúvida que resta. Para quem prepara uma orientação a cliente, entregue o texto para revisão. |
 
-Para `ajuda`, apresente os oito verbos e os apoios `perfil` e `atualizacoes` em uma linha cada, com um exemplo adequado ao pedido. Combine rotinas quando a entrega exigir. Para uma dúvida difícil, abra só a seção pertinente de [Casos de uso das rotinas](references/rotinas.md). Para levar estas instruções a um chat simples, ofereça o [texto para conversa](references/conversa.md).
+Para `ajuda`, apresente os oito verbos e os apoios `perfil` e `atualizacoes` em uma linha cada, com um exemplo adequado ao pedido. Combine rotinas quando a entrega exigir. Para uma dúvida difícil, abra só a seção pertinente de [Casos de uso das rotinas](references/rotinas.md). Para levar estas instruções a um chat simples, ofereça o [texto para conversa](references/conversa.md). Para instalar, atualizar ou mudar o canal, leia o [procedimento de distribuição](references/instalacao.md) e execute o trabalho autorizado para a pessoa.
 
 ## Sustente cada conclusão
 
@@ -64,6 +64,6 @@ No primeiro uso local, leia `perfil mostrar` antes de aplicar preferências. Sem
 
 O perfil pessoal contém apenas preferências. Nunca transfira para ele nomes de partes, referências de processos, documentos ou o resumo de um caso. Sem armazenamento local, aplique as preferências nesta conversa e entregue um bloco reutilizável quando a pessoa pedir para guardá-las. Só confirme a gravação após sucesso do utilitário.
 
-No primeiro uso local elegível, execute `atualizacoes` e deixe o utilitário respeitar o intervalo e o cache. No pedido explícito `atualizacoes`, use `--forcar`. Use `--repositorio /repo/git/local` apenas para uma consulta local solicitada. Informe a diferença de conteúdo e o link de comparação se disponíveis. Relate ausência de procedência verificável ou falha de acesso quando afetarem a consulta. Sem rede ou utilitário, a comparação fica pendente e a tarefa jurídica prossegue. A checagem ocorre durante o uso. Uma consulta não autoriza instalar a revisão publicada.
+No primeiro uso local elegível, execute `atualizacoes` e deixe o utilitário respeitar o intervalo e o cache. No pedido explícito `atualizacoes`, use `--forcar`. Use `--repositorio /repo/git/local` apenas para uma consulta local solicitada. Informe canal, release e diferença de conteúdo quando disponíveis. O canal estável acompanha releases publicadas. `main@dev` acompanha a branch de desenvolvimento. Sem release estável, informe a ausência e não troque para desenvolvimento. Relate falha de acesso quando afetar a consulta. Sem rede ou utilitário, a comparação fica pendente e a tarefa jurídica prossegue. A checagem ocorre durante o uso. Uma consulta não autoriza instalar a revisão publicada.
 
-Para um pedido de instalação, a partir da cópia escolhida use `python3 scripts/local.py instalar codex` ou `python3 scripts/local.py instalar claude`. Para o destino explícito escolhido pela pessoa, acrescente `--destino /caminho/juriswany`.
+Para pedidos como "instale a skill https://github.com/allanmcarvalho/juriswany" ou "atualize a skill https://github.com/allanmcarvalho/juriswany", siga o procedimento de distribuição. Escolha produção na primeira instalação, salvo pedido por `main@dev`. Na atualização, mantenha destino e canal, salvo escolha explícita. Prepare a revisão, inspecione e execute os comandos necessários sem exigir terminal do operador. Confirme a conclusão somente após conferir a cópia real.

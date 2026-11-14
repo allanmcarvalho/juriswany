@@ -24,34 +24,34 @@ Esta é a primeira versão instalável. O pacote reúne instruções para oito r
 
 O agente que carrega a skill executa o trabalho. Pesquisa, leitura de arquivos e delegação usam as ferramentas disponíveis nessa conversa. O Juriswany não exige chave de API nem escolhe um modelo específico.
 
-## Instale no seu agente
+## Instale pedindo ao agente
 
-Para as funções locais, use macOS ou Linux com Python 3.9 ou superior. A consulta de atualizações também precisa de Git e rede.
+No Codex ou em outro agente com acesso autorizado à rede e aos arquivos da máquina, envie:
 
-Baixe o repositório e instale a skill no Codex:
-
-```sh
-git clone https://github.com/allanmcarvalho/juriswany.git
-cd juriswany
-python3 skills/juriswany/scripts/local.py instalar codex
+```text
+gpt instale a skill https://github.com/allanmcarvalho/juriswany
 ```
 
-Para o Claude Code, execute:
+O agente consulta a última release estável, fixa a revisão, inspeciona os arquivos e executa a instalação. Ele informa a versão e o canal escolhidos. Os comandos técnicos fazem parte do trabalho do agente.
 
-```sh
-python3 skills/juriswany/scripts/local.py instalar claude
+Para testar a versão em desenvolvimento, peça explicitamente:
+
+```text
+gpt instale a skill https://github.com/allanmcarvalho/juriswany usando main@dev
 ```
 
-Cada comando instala uma cópia autocontida. O instalador preserva mudanças locais e recusa substituir pastas que não reconhece.
+`main@dev` significa acompanhar a branch `main`. A produção acompanha as [releases estáveis](https://github.com/allanmcarvalho/juriswany/releases/latest). Se ainda não houver release estável, o agente informa isso e oferece desenvolvimento, sem trocar de canal por conta própria.
 
-| Ambiente | Destino da instalação | Como chamar |
-| --- | --- | --- |
-| Codex | `~/.agents/skills/juriswany` | `$juriswany analisar` |
-| Claude Code | `~/.claude/skills/juriswany` | `/juriswany analisar` |
-| ChatGPT com seletor de skills | Conforme a interface disponível | Selecione `@juriswany` e descreva a tarefa. |
-| Chat sem instalação | Cole as [instruções de conversa](skills/juriswany/references/conversa.md). | Faça o pedido em linguagem comum. |
+O [procedimento de instalação para agentes](INSTALL.md) orienta a seleção, a inspeção e a publicação protegida da cópia. Ele reaproveita o instalador nativo quando disponível.
 
-A sintaxe pertence ao aplicativo. Consulte as documentações de [skills no ChatGPT e Codex](https://learn.chatgpt.com/docs/build-skills.md) e de [skills no Claude Code](https://code.claude.com/docs/en/skills). Se a nova skill não aparecer, reinicie a sessão do agente.
+| Ambiente | Como chamar depois de instalar |
+| --- | --- |
+| Codex | `$juriswany ajuda` |
+| Claude Code | `/juriswany ajuda` |
+| ChatGPT com seletor de skills | Selecione `@juriswany` e descreva a tarefa. |
+| Chat sem acesso ao computador | Cole as [instruções de conversa](skills/juriswany/references/conversa.md). |
+
+A instalação na máquina depende das ferramentas e permissões do aplicativo. Uma conversa sem acesso local pode usar as rotinas, mas não deve confirmar que instalou arquivos. A sintaxe de invocação segue as documentações de [ChatGPT e Codex](https://learn.chatgpt.com/docs/build-skills.md) e de [Claude Code](https://code.claude.com/docs/en/skills).
 
 ## Comece pela conversa
 
@@ -83,37 +83,38 @@ Esses valores são tetos. Nenhum modo exige delegação ou contrata outro modelo
 
 Para Go, Plus e outros planos, use o modo econômico conforme as ferramentas que sua conta oferece. Na conversa sem acesso ao computador, as [instruções coláveis](skills/juriswany/references/conversa.md) mantêm o fluxo de trabalho. Nesse ambiente, preferências precisam ser reapresentadas ou guardadas pelos recursos do próprio aplicativo. Não testamos esta versão em contas de cada plano. A disponibilidade e os limites seguem a [documentação do produto](https://learn.chatgpt.com/docs/pricing).
 
-## Guarde suas preferências na máquina
+## Personalize pela conversa
 
-Quando há acesso local, o secretário usa um perfil fora da instalação. Por padrão, ele fica em `~/.config/juriswany/perfil.json`. A variável `XDG_CONFIG_HOME` permite outro diretório.
+Peça, por exemplo:
 
-O perfil guarda nome de preferência, tratamento, extensão das respostas, modo de execução e frequência de consulta ao repositório. Não guarda documentos de casos nem credenciais.
-
-Você também pode configurá-lo pelo terminal, a partir do clone:
-
-```sh
-python3 skills/juriswany/scripts/local.py perfil definir --nome Lia --tratamento Dra. --resposta curta --execucao economica --consulta semanal
-python3 skills/juriswany/scripts/local.py perfil mostrar
-python3 skills/juriswany/scripts/local.py perfil exportar
+```text
+$juriswany perfil
+Me chame de Dra. Lia. Prefiro respostas curtas, execução econômica e consulta semanal de atualizações.
 ```
 
-O secretário usa o nome informado por você. A homenagem à Tawany e o nome da conta do computador não definem quem é o operador. Sem perfil, ele começa com tratamento neutro.
+Quando há armazenamento local, o agente guarda essas preferências em um perfil separado da instalação. Atualizar a skill preserva esse perfil. O nome vem do que você informou. A homenagem à Tawany e o nome da conta do computador não definem quem é o operador.
 
-## Confira as atualizações
+O perfil guarda preferências, sem documentos de casos ou credenciais. Em conversa sem armazenamento local, o secretário pode entregar um bloco copiável para você levar a outro chat.
 
-Peça `$juriswany atualizacoes` ou, a partir da instalação no Codex, execute:
+## Atualize pedindo ao agente
 
-```sh
-python3 ~/.agents/skills/juriswany/scripts/local.py atualizacoes --forcar
+Envie:
+
+```text
+gpt atualize a skill https://github.com/allanmcarvalho/juriswany
 ```
 
-A consulta compara o conteúdo instalado da skill e a licença que a acompanha com o publicado no repositório. Uma mudança apenas na apresentação do repositório não implica nova skill.
+O agente conserva o canal e o destino da instalação, confere a nova revisão e aplica a atualização. Para mudar de canal, indique isso no pedido:
 
-No próximo uso elegível, a skill consulta o repositório conforme a frequência do perfil. O cache fica separado, em `~/.cache/juriswany`, ou sob `XDG_CACHE_HOME`. Não há processo em segundo plano.
+```text
+gpt atualize a skill https://github.com/allanmcarvalho/juriswany para main@dev
+```
 
-Uma diferença gera uma sugestão com as referências disponíveis. A consulta não substitui arquivos nem executa instruções remotas. Depois de revisar a mudança, atualize seu clone e repita o comando de instalação.
+Para voltar à produção, peça a versão estável. Uma instalação estável não recebe aviso de atualização só porque a branch de desenvolvimento mudou.
 
-Instalações a partir de arquivos modificados ou sem histórico Git continuam utilizáveis, mas podem não ter procedência suficiente para comparar revisões.
+`$juriswany atualizacoes` consulta diferenças e pode sugerir a atualização. As consultas periódicas ocorrem no uso elegível, conforme a preferência salva. Não há processo em segundo plano. O cache fica separado do perfil.
+
+O instalador preserva alterações locais e recusa substituir cópias desconhecidas sem verificação. Uma cópia nativa pode ser adotada quando corresponder exatamente a uma revisão comprovada. O procedimento não apaga uma pasta para contornar uma recusa.
 
 ## Cuidados que orientam o projeto
 
@@ -134,15 +135,9 @@ O desenho adapta mecanismos de planejamento, rastreamento de fontes, comparaçã
 
 A skill funciona sem o poteto-mode instalado. O pacote segue o [formato aberto Agent Skills](https://agentskills.io/specification).
 
-## Verifique o utilitário local
+## Desenvolva e publique
 
-Execute os testes sem instalar a skill no seu perfil real:
-
-```sh
-python3 -m unittest discover -s tests -v
-```
-
-Os testes usam diretórios temporários e repositórios Git locais. A validação dos scripts não garante o resultado de uma análise jurídica. As instruções também precisam de avaliação por cenários de uso.
+Os detalhes técnicos ficam no [guia de contribuição](CONTRIBUTING.md) e no [procedimento de publicação](docs/publicacao.md). O utilitário usa Python 3.9 ou superior e Git em macOS ou Linux. Quem opera pelo chat não precisa executar esses comandos.
 
 ## Como participar
 

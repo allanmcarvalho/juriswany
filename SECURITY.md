@@ -4,7 +4,7 @@ Esta política cobre vulnerabilidades do projeto e exposição de credenciais, d
 
 ## Estado atual
 
-A análise de relatos considera a skill e o utilitário local disponíveis na branch principal. Não há compromisso de suporte a versões antigas ou prazo garantido de resposta nesta etapa.
+A análise de relatos considera a última release estável e o conteúdo da branch principal. Não há compromisso de suporte a versões antigas ou prazo garantido de resposta nesta etapa.
 
 ## Relate de forma reservada
 

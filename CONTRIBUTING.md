@@ -52,6 +52,8 @@ Use destinos de instalação temporários e configure `XDG_CONFIG_HOME` e `XDG_C
 
 Para alterações nas instruções, experimente um pedido fictício com os recursos que a mudança declara suportar. Confira a entrega real. Em modo econômico, verifique que o agente não inventa delegação, pesquisa ou persistência.
 
+Para mudanças de distribuição, confira o pedido natural de instalação ou atualização por URL. Preserve o canal e o destino escolhidos e a inspeção anterior à execução. Os testes de releases usam servidor HTTP em loopback e remotos Git locais. O [procedimento de publicação](docs/publicacao.md) orienta a criação de versões estáveis.
+
 ## Licença das contribuições
 
 Ao enviar uma contribuição, você concorda em disponibilizá-la sob a [licença MIT](LICENSE) do projeto. Envie apenas material que você tenha autorização para compartilhar e respeite os direitos sobre conteúdo de terceiros.

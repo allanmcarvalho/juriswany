@@ -4,7 +4,7 @@
 
 O operador precisa manter o mesmo jeito de trabalhar ao trocar de agente ou perder acesso a uma ferramenta. O mantenedor precisa atualizar a skill sem apagar preferências pessoais.
 
-O desenho combina um pacote Agent Skills com um utilitário local opcional. Uma auditoria conduzida com Astra examinou os mecanismos do poteto-mode e selecionou os que produzem entregas úteis na rotina jurídica.
+O desenho combina um pacote Agent Skills com um utilitário local opcional. Uma auditoria conduzida com Astra examinou os mecanismos do poteto-mode e selecionou os que produzem entregas úteis na rotina jurídica. Na instalação, a pessoa fornece a URL e o agente executa a seleção, a inspeção e a publicação da cópia.
 
 ## Mecanismos adaptados
 
@@ -44,13 +44,17 @@ Essa escolha preserva o trabalho em ambientes simples. Não fixa modelos, preço
 
 ## Instalação e atualização
 
-Uma cópia instalada isola a versão escolhida do clone de desenvolvimento. O instalador reconhece as cópias que gerencia e confere sua integridade antes de substituir arquivos. Uma pasta desconhecida ou modificada permanece intacta.
+Uma cópia instalada isola a versão escolhida do clone de desenvolvimento. O instalador nativo do host pode preparar a revisão em uma pasta temporária. O agente lê os arquivos antes de executar o publicador. O helper confere o inventário e os bytes contra os objetos Git do commit selecionado antes de registrar a procedência.
+
+O marcador da instalação guarda seu canal. Produção usa `stable` e acompanha a última release pública estável. `main@dev` seleciona `dev` e acompanha `main`. Uma atualização conserva canal e destino, salvo pedido de mudança. Os marcadores de formato 1 são lidos como desenvolvimento, conforme o comportamento que tinham.
+
+O instalador reconhece as cópias que gerencia e confere sua integridade antes de substituir arquivos. Uma pasta desconhecida ou modificada permanece intacta. A adoção de uma cópia nativa exige opção explícita e igualdade exata com a revisão verificada. A licença acompanha a pasta da skill, e um teste confere sua igualdade com a licença da raiz.
 
 As gravações do perfil e as trocas da instalação usam bloqueio e substituição atômica. A troca mantém material suficiente para recuperar uma interrupção. Atualizar a skill não altera o perfil.
 
-A consulta compara a árvore Git do pacote e o conteúdo da licença distribuída com ele. Uma mudança apenas no README não indica mudança da skill. Uma árvore ou licença diferente significa conteúdo publicado diferente. O programa não presume avanço de versão quando não verificou essa relação.
+A consulta resolve a referência pelo canal instalado e compara a árvore Git do pacote e o conteúdo da licença distribuída. No canal estável, uma mudança só em `main` não indica atualização. A ausência de release estável é diferente de uma falha de rede. Uma árvore ou licença diferente significa conteúdo publicado diferente. O programa não presume avanço de versão quando não verificou essa relação.
 
-A consulta sugere revisão e reinstalação. Não aplica instruções remotas. A verificação periódica acontece no uso elegível, sem daemon ou agendamento criado na conta.
+A consulta sugere revisão e instalação pelo agente. Não aplica instruções remotas. A verificação periódica acontece no uso elegível, sem daemon ou agendamento criado na conta. O pedido explícito para instalar ou atualizar autoriza executar a operação revisada, respeitando as permissões do host.
 
 ## Alternativas consideradas
 

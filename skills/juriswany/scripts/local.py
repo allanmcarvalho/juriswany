@@ -6,6 +6,7 @@ from contextlib import contextmanager
 from datetime import datetime, timezone
 import fcntl
 import hashlib
+from http.client import HTTPException
 import json
 import os
 from pathlib import Path, PurePosixPath
@@ -16,11 +17,16 @@ import subprocess
 import sys
 import tempfile
 import time
+from urllib.error import HTTPError, URLError
+from urllib.parse import urlsplit
+from urllib.request import Request, HTTPRedirectHandler, ProxyHandler, build_opener
 
 
 PACKAGE = Path(__file__).resolve().parent.parent
 MARKER = ".juriswany-install.json"
 OFFICIAL = "https://github.com/allanmcarvalho/juriswany.git"
+RELEASES = "https://api.github.com/repos/allanmcarvalho/juriswany/releases/latest"
+RELEASE_TAG = r"v(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)"
 DEFAULT_PROFILE = {
     "formato": 1, "revisao": 0, "resposta": "curta",
     "execucao": "economica", "consulta": "semanal",
@@ -218,12 +224,21 @@ def managed(root):
     if not marker.is_file() or marker.is_symlink():
         raise LocalError("Instalação desconhecida em {}. Destino preservado.".format(root))
     value = read_json(marker)
-    if (not isinstance(value, dict) or set(value) != {"gerenciador", "formato", "procedencia", "arquivos"}
+    common = {"gerenciador", "formato", "procedencia", "arquivos"}
+    if (not isinstance(value, dict) or type(value.get("formato")) is not int
+            or value["formato"] not in (1, 2)
+            or set(value) != (common if value["formato"] == 1 else common | {"canal", "release"})
             or value["gerenciador"] != "juriswany"
-            or type(value["formato"]) is not int or value["formato"] != 1
             or not isinstance(value["arquivos"], dict) or not value["arquivos"]):
         raise LocalError("Marcador inválido em {}. Destino preservado.".format(root))
     validate_provenance(value["procedencia"])
+    if value["formato"] == 1:
+        value = dict(value, canal="dev", release=None)
+    elif (value["canal"] not in ("stable", "dev")
+          or (value["canal"] == "dev" and value["release"] is not None)
+          or (value["canal"] == "stable" and
+              (value["procedencia"]["tipo"] != "git" or not valid_tag(value["release"])))):
+        raise LocalError("Canal ou release inválida no marcador. Destino preservado.")
     for name, digest in value["arquivos"].items():
         safe_relative(name)
         if name == MARKER or not isinstance(digest, str) or not re.fullmatch(r"[0-9a-f]{64}", digest):
@@ -260,39 +275,73 @@ def git(*arguments, cwd=None):
     return result.stdout
 
 
+def valid_tag(value):
+    return isinstance(value, str) and re.fullmatch(RELEASE_TAG, value) is not None
+
+
+def git_license(repo, revision):
+    entry = git("ls-tree", "-z", revision, "--", "LICENSE", cwd=repo)
+    if not re.fullmatch(rb"(100644|100755) blob ([0-9a-f]{40}|[0-9a-f]{64})\tLICENSE\x00", entry):
+        raise LocalError("LICENSE deve ser um arquivo regular na árvore Git da origem.")
+    return git("show", revision + ":LICENSE", cwd=repo)
+
+
+def verified_provenance(root, files, license_path, repo, commit, external=False):
+    if not isinstance(commit, str) or not re.fullmatch(r"[0-9a-f]{40}|[0-9a-f]{64}", commit):
+        raise LocalError("Informe o SHA completo do commit da origem.")
+    resolved = git("rev-parse", "--verify", commit + "^{commit}", cwd=repo).decode().strip()
+    if resolved != commit:
+        raise LocalError("O SHA não identifica o commit fornecido.")
+    tree = git("rev-parse", commit + ":skills/juriswany", cwd=repo).decode().strip()
+    entries = git("ls-tree", "-rz", commit + ":skills/juriswany", cwd=repo).split(b"\x00")
+    tracked = set()
+    for entry in filter(None, entries):
+        metadata, raw_name = entry.split(b"\t", 1)
+        mode, kind, digest = metadata.split()
+        name = raw_name.decode("utf-8")
+        safe_relative(name)
+        if mode not in (b"100644", b"100755") or kind != b"blob":
+            raise LocalError("A árvore Git contém tipo ou modo não permitido.")
+        path = root / name
+        if path.is_symlink() or not path.is_file():
+            raise LocalError("Arquivo da origem ausente ou irregular.")
+        if external and bool(path.stat().st_mode & 0o111) != (mode == b"100755"):
+            raise LocalError("Modo do arquivo diverge da árvore Git.")
+        content = path.read_bytes()
+        if git("cat-file", "blob", digest.decode(), cwd=repo) != content:
+            raise LocalError("O conteúdo do pacote diverge do commit fornecido.")
+        tracked.add(name)
+    expected = set(files)
+    if "LICENSE" not in tracked:
+        if external:
+            raise LocalError("A árvore da origem externa não contém LICENSE no pacote.")
+        expected.discard("LICENSE")
+    if tracked != expected:
+        raise LocalError("O inventário do pacote diverge da árvore Git.")
+    tracked_dirs = {str(parent) for name in tracked for parent in PurePosixPath(name).parents}
+    for current, dirs, _ in os.walk(root):
+        if not external:
+            dirs[:] = [name for name in dirs if name not in IGNORED]
+        for name in dirs:
+            if (Path(current) / name).relative_to(root).as_posix() not in tracked_dirs:
+                raise LocalError("O pacote contém diretório extra.")
+    if git_license(repo, commit) != license_path.read_bytes():
+        raise LocalError("A licença do pacote diverge da licença da origem.")
+    return {"tipo": "git", "commit": commit, "arvore": tree}
+
+
+def local_repository(root):
+    repo = Path(os.fsdecode(git("rev-parse", "--show-toplevel", cwd=root)).strip()).resolve()
+    if root.resolve() != repo / "skills" / "juriswany":
+        raise LocalError("O pacote não ocupa o caminho oficial na origem Git.")
+    return repo
+
+
 def source_provenance(root, files, license_path):
     try:
-        repo = Path(os.fsdecode(git("rev-parse", "--show-toplevel", cwd=root)).strip()).resolve()
-        if root.resolve() != repo / "skills" / "juriswany":
-            return {"tipo": "sem_procedencia"}
+        repo = local_repository(root)
         commit = git("rev-parse", "HEAD", cwd=repo).decode().strip()
-        tree = git("rev-parse", "HEAD:skills/juriswany", cwd=repo).decode().strip()
-        entries = git("ls-tree", "-rz", "HEAD:skills/juriswany", cwd=repo).split(b"\x00")
-        tracked = {}
-        for entry in filter(None, entries):
-            metadata, raw_name = entry.split(b"\t", 1)
-            mode, kind, digest = metadata.split()
-            name = raw_name.decode("utf-8")
-            safe_relative(name)
-            if mode not in (b"100644", b"100755") or kind != b"blob":
-                return {"tipo": "sem_procedencia"}
-            content = (root / name).read_bytes()
-            algorithm = hashlib.sha1 if len(digest) == 40 else hashlib.sha256
-            blob = b"blob " + str(len(content)).encode() + b"\x00" + content
-            if algorithm(blob).hexdigest() != digest.decode():
-                return {"tipo": "sem_procedencia"}
-            tracked[name] = files.get(name)
-        if set(tracked) != set(files):
-            return {"tipo": "sem_procedencia"}
-        tracked_dirs = {str(parent) for name in tracked for parent in PurePosixPath(name).parents}
-        for current, dirs, _ in os.walk(root):
-            dirs[:] = [name for name in dirs if name not in IGNORED]
-            for name in dirs:
-                if (Path(current) / name).relative_to(root).as_posix() not in tracked_dirs:
-                    return {"tipo": "sem_procedencia"}
-        if git("show", "HEAD:LICENSE", cwd=repo) != license_path.read_bytes():
-            return {"tipo": "sem_procedencia"}
-        return {"tipo": "git", "commit": commit, "arvore": tree}
+        return verified_provenance(root, files, license_path, repo, commit)
     except (LocalError, OSError, UnicodeError, ValueError):
         return {"tipo": "sem_procedencia"}
 
@@ -317,6 +366,24 @@ def source_package():
 
 def install(args):
     _, files, provenance, license_path = source_package()
+    if (args.origem_git is None) != (args.commit is None):
+        raise LocalError("Use --origem-git e --commit juntos.")
+    if args.release and not valid_tag(args.release):
+        raise LocalError("Release deve seguir vMAJOR.MINOR.PATCH, sem prerelease.")
+    if args.origem_git is not None:
+        origin = Path(args.origem_git).expanduser().resolve()
+        if not (PACKAGE / "LICENSE").is_file():
+            raise LocalError("A origem externa exige LICENSE dentro do pacote.")
+        try:
+            files = snapshot(PACKAGE)
+            provenance = verified_provenance(PACKAGE, files, license_path, origin,
+                                             args.commit, external=True)
+        except (UnicodeError, ValueError) as error:
+            raise LocalError("Objetos Git inválidos na origem fornecida.") from error
+    else:
+        origin = None
+    if args.adotar_nativa and provenance["tipo"] != "git":
+        raise LocalError("A adoção exige uma origem Git verificada.")
     if args.destino:
         requested = Path(args.destino).expanduser().absolute()
     else:
@@ -335,15 +402,61 @@ def install(args):
                 backup.rename(destination)
                 recovered = True
         current = None
+        adopt = False
         if destination.exists() or destination.is_symlink():
-            current = managed(destination)
+            if (args.adotar_nativa and not (destination / MARKER).exists()
+                    and not (destination / MARKER).is_symlink()):
+                if destination.is_symlink() or snapshot(destination) != files:
+                    raise LocalError("A cópia nativa difere da origem verificada. Destino preservado.")
+                if any(bool((destination / name).stat().st_mode & 0o111)
+                       != bool((PACKAGE / name).stat().st_mode & 0o111) for name in files):
+                    raise LocalError("O modo dos arquivos da cópia nativa foi alterado. Destino preservado.")
+                allowed_dirs = {str(parent) for name in files for parent in PurePosixPath(name).parents}
+                if any(path.relative_to(destination).as_posix() not in allowed_dirs
+                       for path in destination.rglob("*") if path.is_dir()):
+                    raise LocalError("A cópia nativa contém diretório extra. Destino preservado.")
+                adopt = True
+            else:
+                current = managed(destination)
+        channel = args.canal or (current["canal"] if current else "dev")
+        release = args.release
+        if channel == "dev" and release is not None:
+            raise LocalError("O canal dev não aceita --release.")
+        if channel == "stable":
+            if release is None and current and current["canal"] == "stable":
+                release = current["release"]
+            if not valid_tag(release) or provenance["tipo"] != "git":
+                raise LocalError("O canal stable exige --release e procedência Git verificada.")
+            if origin is None:
+                try:
+                    origin = local_repository(PACKAGE)
+                except LocalError:
+                    if not (current and current["canal"] == "stable"
+                            and release == current["release"] and files == current["arquivos"]
+                            and provenance == current["procedencia"]):
+                        raise LocalError("Forneça os objetos Git para verificar a tag da release.")
+            if origin is not None:
+                tagged = git("rev-parse", "--verify", "refs/tags/" + release + "^{commit}",
+                             cwd=origin).decode().strip()
+                if tagged != provenance["commit"]:
+                    raise LocalError("A tag da release não aponta para o commit verificado.")
+        marker = {"gerenciador": "juriswany", "formato": 2, "procedencia": provenance,
+                  "arquivos": files, "canal": channel, "release": release}
+        if adopt:
+            atomic_json(destination / MARKER, marker)
+            return {"estado": "adotado", "destino": str(destination), "recuperado": recovered,
+                    "procedencia": provenance, "canal": channel, "release": release}
         if current and current["arquivos"] == files:
+            refreshed = dict(current, formato=2, canal=channel, release=release)
             if (provenance["tipo"] == "git"
-                    and current["procedencia"].get("arvore") != provenance["arvore"]):
-                current["procedencia"] = provenance
-                atomic_json(destination / MARKER, current)
+                    and (current["procedencia"].get("arvore") != provenance["arvore"]
+                         or current["canal"] != channel
+                         or (channel == "stable" and current.get("release") != release))):
+                refreshed["procedencia"] = provenance
+            if refreshed != current:
+                atomic_json(destination / MARKER, refreshed)
             return {"estado": "ja_instalado", "destino": str(destination), "recuperado": recovered,
-                    "procedencia": current["procedencia"]}
+                    "procedencia": refreshed["procedencia"], "canal": channel, "release": release}
         staging = Path(tempfile.mkdtemp(prefix="." + destination.name + ".stage-",
                                        dir=str(destination.parent)))
         try:
@@ -352,8 +465,6 @@ def install(args):
                 target.parent.mkdir(parents=True, exist_ok=True)
                 source = license_path if name == "LICENSE" else PACKAGE / name
                 shutil.copyfile(source, target)
-            marker = {"gerenciador": "juriswany", "formato": 1,
-                      "procedencia": provenance, "arquivos": files}
             atomic_json(staging / MARKER, marker)
             managed(staging)
             if current:
@@ -372,17 +483,75 @@ def install(args):
             if staging.exists():
                 shutil.rmtree(staging)
     return {"estado": "substituido" if current else "instalado", "destino": str(destination),
-            "recuperado": recovered, "procedencia": provenance,
+            "recuperado": recovered, "procedencia": provenance, "canal": channel, "release": release,
             "backup": str(backup) if current else None}
+
+
+class NoRedirect(HTTPRedirectHandler):
+    def redirect_request(self, req, fp, code, msg, headers, newurl):
+        raise LocalError("Redirecionamento inesperado na API de releases.")
+
+
+def releases_endpoint(override):
+    if override is None:
+        return RELEASES
+    try:
+        parsed = urlsplit(override)
+        valid = (parsed.scheme == "http" and parsed.hostname in ("127.0.0.1", "::1", "localhost")
+                 and parsed.port is not None and not parsed.username and not parsed.password
+                 and not parsed.fragment and not parsed.query)
+    except ValueError as error:
+        raise LocalError("Endpoint de teste inválido.") from error
+    if not valid:
+        raise LocalError("--releases-url aceita somente HTTP em loopback com porta explícita.")
+    return override
+
+
+def latest_release(endpoint):
+    request = Request(endpoint, headers={"Accept": "application/vnd.github+json",
+                                         "User-Agent": "Juriswany"})
+    try:
+        opener = build_opener(NoRedirect, *([ProxyHandler({})] if endpoint != RELEASES else []))
+        with opener.open(request, timeout=5) as response:
+            if response.status != 200:
+                raise LocalError("Resposta inesperada da API de releases.")
+            payload = response.read(1048577)
+            if len(payload) > 1048576:
+                raise LocalError("Resposta da API de releases excedeu o limite.")
+        value = json.loads(payload)
+        if (not isinstance(value, dict) or value.get("draft") is not False
+                or value.get("prerelease") is not False or not valid_tag(value.get("tag_name"))
+                or not isinstance(value.get("published_at"), str)):
+            raise LocalError("A API não retornou uma release estável publicada válida.")
+        published = datetime.fromisoformat(value["published_at"].replace("Z", "+00:00"))
+        if published.tzinfo is None:
+            raise LocalError("Data de publicação inválida na release.")
+        tag = value["tag_name"]
+        link = OFFICIAL[:-4] + "/releases/tag/" + tag
+        if value.get("html_url") != link:
+            raise LocalError("A API retornou um link de release inesperado.")
+        return tag
+    except HTTPError as error:
+        if error.code == 404:
+            return None
+        raise LocalError("API de releases indisponível (HTTP {}).".format(error.code)) from error
+    except (URLError, TimeoutError, OSError, ValueError, UnicodeError, HTTPException, RecursionError) as error:
+        raise LocalError("Não foi possível consultar uma release válida no tempo limite.") from error
 
 
 def updates(args):
     metadata, files, provenance, _ = source_package()
+    installed = managed(PACKAGE) if (PACKAGE / MARKER).exists() else None
+    channel = installed["canal"] if installed else "dev"
+    release = installed["release"] if installed else None
+    endpoint = releases_endpoint(args.releases_url)
     if provenance["tipo"] != "git":
-        return {"estado": "sem_procedencia", "mensagem": "Esta cópia não tem revisão Git verificável."}
+        return {"estado": "sem_procedencia", "canal": channel, "release_instalada": release,
+                "mensagem": "Esta cópia não tem revisão Git verificável."}
     profile = load_profile()
     if profile["consulta"] == "manual" and not args.forcar:
-        return {"estado": "indisponivel", "motivo": "consulta_automatica_desabilitada",
+        return {"estado": "indisponivel", "canal": channel, "release_instalada": release,
+                "motivo": "consulta_automatica_desabilitada",
                 "mensagem": "Use --forcar para consultar agora."}
     repository = args.repositorio or metadata["repositorio"]
     if args.repositorio:
@@ -393,7 +562,7 @@ def updates(args):
     cache_base = Path(os.environ.get("XDG_CACHE_HOME") or Path.home() / ".cache") / "juriswany"
     private_dir(cache_base)
     identity = "\x00".join((str(PACKAGE), repository, provenance["commit"], provenance["arvore"],
-                           files["LICENSE"]))
+                           files["LICENSE"], channel, release or "", endpoint))
     cache = cache_base / (hashlib.sha256(identity.encode()).hexdigest() + ".json")
     interval = {"diaria": 86400, "semanal": 604800, "manual": 0}[profile["consulta"]]
     with locked(cache.with_suffix(".lock")):
@@ -404,30 +573,48 @@ def updates(args):
                 result = previous["resultado"]
                 if (type(previous["horario"]) in (int, float) and 0 <= age < interval
                         and isinstance(result, dict)
-                        and result.get("estado") in ("atual", "diferente", "indisponivel")):
+                        and result.get("estado") in ("atual", "diferente", "indisponivel", "sem_release")):
                     return dict(result, cache=True)
             except (LocalError, KeyError, TypeError):
                 pass
-        result = {"commit_origem": provenance["commit"], "arvore_origem": provenance["arvore"],
+        result = {"canal": channel, "release_instalada": release,
+                  "commit_origem": provenance["commit"], "arvore_origem": provenance["arvore"],
                   "licenca_origem": files["LICENSE"],
                   "consultado_em": datetime.now(timezone.utc).isoformat(), "cache": False}
         try:
+            published = latest_release(endpoint) if channel == "stable" else None
+            result["release_publicada"] = published
+            if channel == "stable" and published is None:
+                result.update({"estado": "sem_release", "mensagem": "Nenhuma release estável publicada."})
+                atomic_json(cache, {"formato": 1, "horario": time.time(), "resultado": result})
+                return result
+            reference = "refs/tags/" + published if channel == "stable" else metadata["referencia"]
             with tempfile.TemporaryDirectory(prefix="consulta-", dir=str(cache_base)) as temporary:
                 git("init", "--bare", temporary)
                 git("fetch", "--depth=1", "--no-tags", "--", repository,
-                    metadata["referencia"], cwd=temporary)
-                commit = git("rev-parse", "FETCH_HEAD", cwd=temporary).decode().strip()
+                    reference, cwd=temporary)
+                commit = git("rev-parse", "FETCH_HEAD^{commit}", cwd=temporary).decode().strip()
                 tree = git("rev-parse", "FETCH_HEAD:" + metadata["caminho"], cwd=temporary).decode().strip()
-                remote_license = hashlib.sha256(git("show", "FETCH_HEAD:LICENSE", cwd=temporary)).hexdigest()
-            different = tree != provenance["arvore"] or remote_license != files["LICENSE"]
-            result.update({"estado": "diferente" if different else "atual",
+                remote_license = hashlib.sha256(git_license(temporary, "FETCH_HEAD")).hexdigest()
+                listing = git("ls-tree", "FETCH_HEAD:" + metadata["caminho"], cwd=temporary)
+                if any(entry.endswith(b"\tLICENSE") for entry in listing.splitlines()):
+                    packaged_license = hashlib.sha256(git("show", "FETCH_HEAD:" + metadata["caminho"]
+                                                          + "/LICENSE", cwd=temporary)).hexdigest()
+                    if packaged_license != remote_license:
+                        raise LocalError("As licenças da release e do pacote divergem.")
+            content_changed = tree != provenance["arvore"] or remote_license != files["LICENSE"]
+            release_changed = channel == "stable" and published != release
+            result.update({"estado": "diferente" if content_changed or release_changed else "atual",
+                           "conteudo_alterado": content_changed, "release_diferente": release_changed,
                            "commit_remoto": commit, "arvore_remota": tree,
                            "licenca_remota": remote_license})
-            if different:
+            if content_changed:
                 result["mensagem"] = "O pacote publicado tem conteúdo diferente. A consulta não instala código."
+            elif release_changed:
+                result["mensagem"] = "A release publicada é diferente, mas o conteúdo do pacote é igual ao instalado."
             if not args.repositorio:
                 result["comparacao"] = OFFICIAL.removesuffix(".git") + "/compare/" + provenance["commit"] + "..." + commit
-        except LocalError as error:
+        except (LocalError, OSError, UnicodeError, ValueError) as error:
             result.update({"estado": "indisponivel", "mensagem": str(error)})
         atomic_json(cache, {"formato": 1, "horario": time.time(), "resultado": result})
         return result
@@ -444,6 +631,11 @@ def main():
     installer = commands.add_parser("instalar", help="Instalar cópia revisável da skill.")
     installer.add_argument("host", choices=("codex", "claude"))
     installer.add_argument("--destino")
+    installer.add_argument("--canal", choices=("stable", "dev"))
+    installer.add_argument("--release")
+    installer.add_argument("--origem-git")
+    installer.add_argument("--commit")
+    installer.add_argument("--adotar-nativa", action="store_true")
     profile = commands.add_parser("perfil", help="Consultar ou definir preferências privadas.")
     actions = profile.add_subparsers(dest="acao", required=True)
     actions.add_parser("mostrar")
@@ -456,6 +648,7 @@ def main():
     update = commands.add_parser("atualizacoes", help="Comparar o pacote sem instalar código remoto.")
     update.add_argument("--forcar", action="store_true")
     update.add_argument("--repositorio")
+    update.add_argument("--releases-url")
     try:
         args = parser.parse_args()
         if args.comando == "instalar":
