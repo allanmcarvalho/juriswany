@@ -64,6 +64,10 @@ Uma alternativa com links para o clone e várias skills por especialidade reduzi
 
 O ambiente desta execução disponibilizava apenas modelos da família GPT. Houve duas propostas independentes, com Astra e Sol, e comparação pelo agente principal. Não houve juiz de outra família.
 
+## Fontes de consulta e fragmentos em estudo
+
+O [desenho de pesquisa e redação](pesquisa/README.md) propõe um catálogo amplo de fontes com categorias, pesquisa com suporte e contraprova e uma biblioteca de fragmentos de redação. Roteiros por tipo de peça orientam a seleção desses blocos e registram lacunas de cobertura. O estudo contém exemplos autorais e um catálogo inicial de consulta. Sua integração ao pacote instalável permanece pendente.
+
 ## Como verificar
 
 Os testes de CLI exercitam instalações em diretórios temporários, preservação do perfil e consultas contra remotos Git locais. Cenários de conversa conferem a separação das evidências, a utilidade da revisão e o comportamento sem ferramentas.
