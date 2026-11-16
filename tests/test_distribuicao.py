@@ -130,6 +130,25 @@ class DistributionCLI(unittest.TestCase):
         self.stable(package=native, commit=later, success=False)
         self.assertEqual(self.marker().read_bytes(), before)
 
+    def test_stable_update_adds_verified_shortcuts_and_preserves_channel_and_profile(self):
+        self.release_source()
+        self.stable()
+        self.cli("perfil", "definir", "--nome", "Lia", package=self.codex)
+        profile = self.profile_file().read_bytes()
+        shutil.copytree(test_local.SOURCE / "atalhos", self.package / "atalhos")
+        commit = self.publish()
+        native = self.native_copy()
+        result = self.install("--release", "v0.3.0", "--origem-git", str(self.repo),
+                              "--commit", commit, package=native)
+        self.assertEqual(result["estado"], "substituido")
+        self.assertEqual(result["canal"], "stable")
+        self.assertEqual(result["release"], "v0.3.0")
+        self.assertEqual(result["destino"], str(self.codex.resolve()))
+        self.assertEqual(result["procedencia"]["commit"], commit)
+        self.assertEqual(len(result["atalhos"]), 11)
+        self.assertTrue(all((Path(path) / "SKILL.md").is_file() for path in result["atalhos"]))
+        self.assertEqual(self.profile_file().read_bytes(), profile)
+
     def test_external_origin_supports_bare_git_repository(self):
         commit = self.release_source()
         native = self.native_copy()

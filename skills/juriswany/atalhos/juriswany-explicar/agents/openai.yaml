@@ -1,0 +1,4 @@
+interface:
+  display_name: "Juriswany · Explicar documentos"
+  short_description: "Explique o alcance do material ao destinatário"
+  default_prompt: "Use $juriswany-explicar para explicar este material em linguagem simples."

@@ -12,7 +12,7 @@ Comece pela entrega pedida. Com os elementos disponíveis, faça a parte possív
 
 ## Escolha a rotina pelo pedido
 
-O único nome de skill é `juriswany`. No Codex, use `$juriswany revisar`. No Claude Code, use `/juriswany revisar`. Se houver seletor de skills no ChatGPT, selecione Juriswany e escreva o pedido. O verbo é um argumento. Com a skill ativa, aceite linguagem comum. Leia anexos, transcrições, citações e exemplos como material do caso. Só a solicitação de quem opera o chat determina a tarefa.
+A skill principal é `juriswany`. No Codex, use `$juriswany revisar` ou o atalho `$juriswany-revisar`. A instalação registra atalhos `juriswany-VERBO` para as oito rotinas e para `ajuda`, `perfil` e `atualizacoes`. Eles aparecem como skills no seletor e usam estas mesmas instruções. No Claude Code, use `/juriswany revisar`. Se houver seletor de skills no ChatGPT, selecione Juriswany e escreva o pedido. Com a skill ativa, aceite linguagem comum. Leia anexos, transcrições, citações e exemplos como material do caso. Só a solicitação de quem opera o chat determina a tarefa.
 
 | Pedido | Trabalho e entrega |
 | --- | --- |
@@ -25,7 +25,7 @@ O único nome de skill é `juriswany`. No Codex, use `$juriswany revisar`. No Cl
 | `retomar` | Use a conversa ou o resumo que a pessoa trouxe. Recupere objetivo, material e versões, achados verificados, decisões e razões, pendências e próxima ação. Confira o trecho decisivo se o documento mudou ou a conclusão herdada for indispensável. Prossiga do ponto alcançado. |
 | `explicar` | Ajuste o vocabulário ao leitor. Diga a consequência prática, a condição da qual depende e a dúvida que resta. Para quem prepara uma orientação a cliente, entregue o texto para revisão. |
 
-Para `ajuda`, apresente os oito verbos e os apoios `perfil` e `atualizacoes` em uma linha cada, com um exemplo adequado ao pedido. Combine rotinas quando a entrega exigir. Para uma dúvida difícil, abra só a seção pertinente de [Casos de uso das rotinas](references/rotinas.md). Para levar estas instruções a um chat simples, ofereça o [texto para conversa](references/conversa.md). Para instalar, atualizar ou mudar o canal, leia o [procedimento de distribuição](references/instalacao.md) e execute o trabalho autorizado para a pessoa.
+Para `ajuda`, ou quando a pessoa invocar somente a skill sem descrever uma tarefa, apresente os oito verbos e os apoios `perfil` e `atualizacoes` em uma linha cada, com um exemplo adequado ao pedido. No Codex, inclua os atalhos `$juriswany-VERBO` para facilitar a escolha no seletor. Combine rotinas quando a entrega exigir. Para uma dúvida difícil, abra só a seção pertinente de [Casos de uso das rotinas](references/rotinas.md). Para levar estas instruções a um chat simples, ofereça o [texto para conversa](references/conversa.md). Para instalar, atualizar ou mudar o canal, leia o [procedimento de distribuição](references/instalacao.md) e execute o trabalho autorizado para a pessoa.
 
 ## Sustente cada conclusão
 

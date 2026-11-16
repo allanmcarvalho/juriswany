@@ -63,13 +63,15 @@ Para Claude Code, use `instalar claude`. Para desenvolvimento, passe `--canal de
 
 A pasta de uma instalação gerenciada passa pelas proteções de integridade, modos executáveis, bloqueio, cópia de segurança e recuperação. O marcador novo usa formato 3 e aceita a leitura dos formatos 1 e 2. Se um marcador antigo não comprovar a origem de uma divergência de modo, preserve a cópia e registre a pendência. Não altere permissões nem apague a pasta para contornar a recusa. O perfil pessoal fica fora dessa troca.
 
+O publicador também registra os onze atalhos `juriswany-VERBO` no mesmo diretório de skills da pasta principal. São links relativos para as pastas de `atalhos/` da cópia instalada. Inspecione seus `SKILL.md` e metadados junto com o restante do pacote. Os links acompanham a cópia instalada, sem depender do clone de desenvolvimento. Se um nome estiver ocupado por uma pasta, arquivo ou link diferente, a instalação é recusada antes da troca. Preserve o caminho e relate o conflito. Uma nova execução recria links ausentes e reaproveita os que já apontam para o destino esperado.
+
 Uma cópia nativa sem marcador só pode ser adotada com `--adotar-nativa` e igualdade exata com a revisão verificada. Não use a opção para ignorar diferenças. Se a cópia antiga não corresponder ao alvo novo, identifique e verifique primeiro a revisão própria da cópia antiga. Sem procedência suficiente ou com alterações locais, preserve a pasta e explique o impedimento.
 
 ## Confira e responda
 
-Leia o marcador e confira o conteúdo instalado. Informe a versão, o canal, o commit e o destino. Identifique qualquer limitação que tenha impedido concluir o pedido.
+Leia o marcador, confira o conteúdo instalado e os caminhos retornados em `atalhos`. Cada link deve permitir ler o `SKILL.md` correspondente e chegar às instruções da skill principal. Informe a versão, o canal, o commit e o destino. Identifique qualquer limitação que tenha impedido concluir o pedido.
 
-No Codex, a skill fica disponível no próximo turno. Se o host não reconhecer a mudança, siga a orientação de recarregamento da interface. Explique como chamar `$juriswany ajuda` no Codex, `/juriswany ajuda` no Claude Code ou selecionar a skill na interface que a oferecer.
+No Codex, explique como digitar `$juriswany-` e selecionar uma das rotinas cadastradas, ou usar `$juriswany ajuda`. Se o host não reconhecer a mudança, siga a orientação de recarregamento da interface. No Codex, reinicie o aplicativo. No Claude Code, use `/juriswany ajuda`. Em outras interfaces, selecione a skill quando houver esse recurso.
 
 ## Atualize com o mesmo procedimento
 

@@ -1,0 +1,4 @@
+interface:
+  display_name: "Juriswany · Comparar teses"
+  short_description: "Compare fundamentos, provas e objeções"
+  default_prompt: "Use $juriswany-teses para comparar os caminhos jurídicos para estes fatos."

@@ -1,0 +1,4 @@
+interface:
+  display_name: "Juriswany · Ajuda e comandos"
+  short_description: "Veja todas as rotinas e exemplos de uso"
+  default_prompt: "Use $juriswany-ajuda para mostrar todas as rotinas e exemplos de uso."

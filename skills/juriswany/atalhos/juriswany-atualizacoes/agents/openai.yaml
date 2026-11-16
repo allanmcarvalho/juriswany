@@ -1,0 +1,4 @@
+interface:
+  display_name: "Juriswany · Consultar atualizações"
+  short_description: "Consulte diferenças da versão instalada"
+  default_prompt: "Use $juriswany-atualizacoes para consultar se há atualização da versão instalada."

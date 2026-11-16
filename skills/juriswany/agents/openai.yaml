@@ -1,4 +1,4 @@
 interface:
   display_name: "Juriswany"
   short_description: "Secretaria jurídica para a rotina do Direito brasileiro"
-  default_prompt: "Use $juriswany para revisar esta minuta e indicar quais afirmações precisam de comprovação."
+  default_prompt: "Use $juriswany para mostrar as rotinas disponíveis e exemplos de uso."

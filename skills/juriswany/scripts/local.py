@@ -443,6 +443,38 @@ def source_package():
     return metadata, files, provenance, license_path
 
 
+@contextmanager
+def shortcut_links(destination, files):
+    links = {}
+    for name in sorted(files):
+        parts = PurePosixPath(name).parts
+        if len(parts) == 3 and parts[0] == "atalhos" and parts[2] == "SKILL.md":
+            skill = parts[1]
+            if not re.fullmatch(r"juriswany-[a-z0-9]+(?:-[a-z0-9]+)*", skill) or len(skill) > 64:
+                raise LocalError("Nome de atalho inválido no pacote.")
+            link = destination.parent / skill
+            target = Path(destination.name) / "atalhos" / skill
+            if link.is_symlink():
+                if os.readlink(link) != str(target):
+                    raise LocalError("Atalho desconhecido em {}. Destino preservado.".format(link))
+            elif link.exists():
+                raise LocalError("O caminho do atalho já está ocupado: {}. Destino preservado.".format(link))
+            links[link] = target
+    created = []
+    try:
+        for link, target in links.items():
+            if link.is_symlink() and os.readlink(link) == str(target):
+                continue
+            link.symlink_to(target, target_is_directory=True)
+            created.append(link)
+        yield [str(link) for link in links]
+    except BaseException:
+        for link in reversed(created):
+            if link.is_symlink() and os.readlink(link) == str(links[link]):
+                link.unlink()
+        raise
+
+
 def install(args):
     metadata, files, provenance, license_path = source_package()
     executables = executable_files(PACKAGE, files)
@@ -525,54 +557,57 @@ def install(args):
                              cwd=origin).decode().strip()
                 if tagged != provenance["commit"]:
                     raise LocalError("A tag da release não aponta para o commit verificado.")
-        marker = {"gerenciador": "juriswany", "formato": 3, "procedencia": provenance,
-                  "arquivos": files, "canal": channel, "release": release,
-                  "executaveis": executables}
-        if adopt:
-            atomic_json(destination / MARKER, marker)
-            return {"estado": "adotado", "destino": str(destination), "recuperado": recovered,
-                    "procedencia": provenance, "canal": channel, "release": release}
-        if (current and current["arquivos"] == files
-                and executable_files(destination, files) == executables):
-            refreshed = dict(current, formato=3, canal=channel, release=release, executaveis=executables)
-            if (provenance["tipo"] == "git"
-                    and (current["procedencia"].get("arvore") != provenance["arvore"]
-                         or current["canal"] != channel
-                         or (channel == "stable" and current.get("release") != release))):
-                refreshed["procedencia"] = provenance
-            if refreshed != current:
-                atomic_json(destination / MARKER, refreshed)
-            return {"estado": "ja_instalado", "destino": str(destination), "recuperado": recovered,
-                    "procedencia": refreshed["procedencia"], "canal": channel, "release": release}
-        staging = Path(tempfile.mkdtemp(prefix="." + destination.name + ".stage-",
-                                       dir=str(destination.parent)))
-        try:
-            for name in files:
-                target = staging / name
-                target.parent.mkdir(parents=True, exist_ok=True)
-                source = license_path if name == "LICENSE" else PACKAGE / name
-                shutil.copyfile(source, target)
-                target.chmod(0o755 if name in executables else 0o644)
-            atomic_json(staging / MARKER, marker)
-            managed(staging)
-            if current:
-                if backup.exists():
-                    discarded = Path(tempfile.mkdtemp(prefix="." + destination.name + ".discard-",
-                                                      dir=str(destination.parent)))
-                    backup.rename(discarded)
-                    shutil.rmtree(discarded)
-                destination.rename(backup)
-            staging.rename(destination)
-        except BaseException:
-            if not destination.exists() and backup.exists():
-                backup.rename(destination)
-            raise
-        finally:
-            if staging.exists():
-                shutil.rmtree(staging)
+        with shortcut_links(destination, files) as shortcuts:
+            marker = {"gerenciador": "juriswany", "formato": 3, "procedencia": provenance,
+                      "arquivos": files, "canal": channel, "release": release,
+                      "executaveis": executables}
+            if adopt:
+                atomic_json(destination / MARKER, marker)
+                return {"estado": "adotado", "destino": str(destination), "recuperado": recovered,
+                        "procedencia": provenance, "canal": channel, "release": release,
+                        "atalhos": shortcuts}
+            if (current and current["arquivos"] == files
+                    and executable_files(destination, files) == executables):
+                refreshed = dict(current, formato=3, canal=channel, release=release, executaveis=executables)
+                if (provenance["tipo"] == "git"
+                        and (current["procedencia"].get("arvore") != provenance["arvore"]
+                             or current["canal"] != channel
+                             or (channel == "stable" and current.get("release") != release))):
+                    refreshed["procedencia"] = provenance
+                if refreshed != current:
+                    atomic_json(destination / MARKER, refreshed)
+                return {"estado": "ja_instalado", "destino": str(destination), "recuperado": recovered,
+                        "procedencia": refreshed["procedencia"], "canal": channel, "release": release,
+                        "atalhos": shortcuts}
+            staging = Path(tempfile.mkdtemp(prefix="." + destination.name + ".stage-",
+                                           dir=str(destination.parent)))
+            try:
+                for name in files:
+                    target = staging / name
+                    target.parent.mkdir(parents=True, exist_ok=True)
+                    source = license_path if name == "LICENSE" else PACKAGE / name
+                    shutil.copyfile(source, target)
+                    target.chmod(0o755 if name in executables else 0o644)
+                atomic_json(staging / MARKER, marker)
+                managed(staging)
+                if current:
+                    if backup.exists():
+                        discarded = Path(tempfile.mkdtemp(prefix="." + destination.name + ".discard-",
+                                                          dir=str(destination.parent)))
+                        backup.rename(discarded)
+                        shutil.rmtree(discarded)
+                    destination.rename(backup)
+                staging.rename(destination)
+            except BaseException:
+                if not destination.exists() and backup.exists():
+                    backup.rename(destination)
+                raise
+            finally:
+                if staging.exists():
+                    shutil.rmtree(staging)
     return {"estado": "substituido" if current else "instalado", "destino": str(destination),
             "recuperado": recovered, "procedencia": provenance, "canal": channel, "release": release,
-            "backup": str(backup) if current else None}
+            "backup": str(backup) if current else None, "atalhos": shortcuts}
 
 
 class NoRedirect(HTTPRedirectHandler):

@@ -1,0 +1,4 @@
+interface:
+  display_name: "Juriswany · Redigir minutas"
+  short_description: "Prepare minutas com fontes e lacunas indicadas"
+  default_prompt: "Use $juriswany-redigir para preparar uma minuta com os fatos e documentos disponíveis."

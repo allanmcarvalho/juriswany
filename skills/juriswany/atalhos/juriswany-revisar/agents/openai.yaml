@@ -1,0 +1,4 @@
+interface:
+  display_name: "Juriswany · Revisar minutas"
+  short_description: "Confira afirmações da minuta contra suas fontes"
+  default_prompt: "Use $juriswany-revisar para conferir esta minuta e apontar correções sem alterar o original."

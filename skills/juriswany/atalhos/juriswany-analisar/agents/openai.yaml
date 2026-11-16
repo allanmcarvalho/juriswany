@@ -1,0 +1,4 @@
+interface:
+  display_name: "Juriswany · Analisar documentos"
+  short_description: "Organize fatos, documentos e divergências"
+  default_prompt: "Use $juriswany-analisar para organizar os fatos e as divergências dos documentos anexos."

@@ -69,7 +69,9 @@ Organize os fatos destas notas fictícias e indique o que falta conferir.
 $juriswany ajuda
 ```
 
-Só `juriswany` é o nome de skill registrado. As palavras seguintes escolhem a rotina. Não são comandos do terminal.
+A instalação registra a skill principal e onze atalhos para escolher a tarefa no menu. No Codex, digite `$juriswany-` e selecione, por exemplo, `$juriswany-analisar`, `$juriswany-revisar` ou `$juriswany-perfil`. O [guia de uso](docs/uso.md#escolha-pelo-menu-de-skills) lista todos os atalhos. A forma `$juriswany revisar` continua disponível. São pedidos na conversa.
+
+Ao enviar somente `$juriswany`, você recebe as opções de uso. Para ter os atalhos em uma instalação anterior, peça ao agente a atualização para uma versão que os inclua. Se a mudança não aparecer no menu após a instalação, reinicie o Codex.
 
 As rotinas cobrem análise de documentos, pesquisa, redação, revisão crítica, comparação de teses, planejamento, explicação e retomada de trabalho. O [catálogo da skill](skills/juriswany/SKILL.md) descreve a entrega de cada uma.
 

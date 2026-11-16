@@ -1,0 +1,4 @@
+interface:
+  display_name: "Juriswany · Configurar preferências"
+  short_description: "Consulte ou ajuste como quer ser atendido"
+  default_prompt: "Use $juriswany-perfil para mostrar minhas preferências e o que falta configurar."

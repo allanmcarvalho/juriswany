@@ -1,0 +1,4 @@
+interface:
+  display_name: "Juriswany · Pesquisar fontes"
+  short_description: "Pesquise normas e decisões em fontes oficiais"
+  default_prompt: "Use $juriswany-pesquisar para pesquisar esta questão jurídica em fontes oficiais."

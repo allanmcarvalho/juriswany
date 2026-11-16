@@ -21,6 +21,30 @@ O agente seleciona a última release estável, inspeciona o pacote e instala a c
 
 Nos exemplos seguintes, substitua `$juriswany` pela forma do seu ambiente. Os verbos são pedidos ao agente, não comandos de terminal. Com a skill ativa, também pode escrever "revise esta minuta" ou "retome o trabalho com este resumo".
 
+## Escolha pelo menu de skills
+
+No Codex, digite `$juriswany-` para filtrar os atalhos e selecione a tarefa. Cada opção tem uma descrição curta:
+
+| Atalho no Codex | Para que serve |
+| --- | --- |
+| `$juriswany-analisar` | Organizar fatos, documentos e divergências. |
+| `$juriswany-pesquisar` | Buscar normas e decisões em fontes oficiais. |
+| `$juriswany-redigir` | Preparar minutas e comunicações. |
+| `$juriswany-revisar` | Conferir uma minuta contra suas fontes. |
+| `$juriswany-teses` | Comparar fundamentos, provas e objeções. |
+| `$juriswany-planejar` | Ordenar as próximas ações do trabalho. |
+| `$juriswany-retomar` | Continuar a partir do histórico ou de um resumo. |
+| `$juriswany-explicar` | Explicar o material para o destinatário. |
+| `$juriswany-ajuda` | Ver as rotinas e exemplos de uso. |
+| `$juriswany-perfil` | Consultar, alterar ou exportar preferências. |
+| `$juriswany-atualizacoes` | Consultar diferenças da versão instalada. |
+
+Depois de selecionar, descreva o trabalho e anexe o material necessário. Os atalhos usam as mesmas instruções e o mesmo perfil da skill principal. Por exemplo, `$juriswany-revisar` equivale a `$juriswany revisar`.
+
+Enviar somente `$juriswany` também mostra as opções. A forma com espaço continua disponível para todos os verbos. O seletor lista cada atalho pelo nome registrado, como `juriswany-revisar`.
+
+Os atalhos acompanham a instalação ou atualização para uma versão que os inclua. Se você tem uma versão anterior, peça ao agente a atualização. O Codex detecta as skills instaladas; se o menu não mudar, reinicie o aplicativo, conforme a [documentação oficial](https://learn.chatgpt.com/docs/build-skills).
+
 ## Configure como quer ser atendido
 
 No primeiro uso, o Juriswany sugere configurar as preferências pendentes e continua o trabalho solicitado. A oferta também aparece quando surgir uma opção nova sem escolha. A pessoa pode configurar apenas parte das opções ou recusar as que não quiser configurar.

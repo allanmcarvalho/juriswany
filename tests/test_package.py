@@ -32,6 +32,19 @@ class PortablePackage(unittest.TestCase):
             self.assertEqual(json.loads(result.stdout)["estado"], "instalado")
             self.assertEqual((destination / "LICENSE").read_bytes(), (ROOT / "LICENSE").read_bytes())
             self.assertTrue((destination / "references/conversa.md").is_file())
+            shortcuts = json.loads(result.stdout)["atalhos"]
+            expected = {"analisar", "pesquisar", "redigir", "revisar", "teses", "planejar",
+                        "retomar", "explicar", "ajuda", "perfil", "atualizacoes"}
+            self.assertEqual({Path(path).name for path in shortcuts},
+                             {"juriswany-" + verb for verb in expected})
+            for path in shortcuts:
+                link = Path(path)
+                self.assertTrue(link.is_symlink())
+                skill = link / "SKILL.md"
+                self.assertTrue(skill.is_file())
+                self.assertIn("name: " + link.name + "\n", skill.read_text(encoding="utf-8"))
+                self.assertEqual(skill.resolve().parent.parent.parent, destination.resolve())
+                self.assertTrue((link / "agents/openai.yaml").is_file())
             self.assertFalse((base / "config").exists())
 
 

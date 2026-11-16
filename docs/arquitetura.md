@@ -26,6 +26,8 @@ Essas referências descrevem métodos examinados durante o desenho. Não são de
 
 `SKILL.md` contém a identidade de secretário robótico e contratos curtos das rotinas. As referências aprofundam tarefas difíceis e oferecem instruções coláveis em uma conversa sem instalação.
 
+As pastas em `atalhos/` expõem cada rotina e os apoios como skills curtas `juriswany-VERBO`. Elas encaminham a leitura para o mesmo `SKILL.md` principal. O instalador cria links relativos no diretório de skills para que o seletor possa listar cada tarefa. Os links apontam para a cópia instalada e acompanham sua substituição, sem ligar a execução ao clone de desenvolvimento. O instalador recusa conflitos de nome antes da troca e remove os links recém-criados se houver falha. Reinstalar recria os ausentes sem reescrever os existentes.
+
 O utilitário Python concentra o acesso ao disco e ao Git. Ele separa os seguintes dados:
 
 - O perfil pertence ao operador e fica fora da instalação.

@@ -1,0 +1,4 @@
+interface:
+  display_name: "Juriswany · Retomar o trabalho"
+  short_description: "Recupere decisões e prossiga das pendências"
+  default_prompt: "Use $juriswany-retomar para continuar o trabalho a partir deste resumo."

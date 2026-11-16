@@ -1,0 +1,4 @@
+interface:
+  display_name: "Juriswany · Planejar o trabalho"
+  short_description: "Ordene ações, insumos e critérios de conclusão"
+  default_prompt: "Use $juriswany-planejar para organizar as próximas ações deste trabalho jurídico."
