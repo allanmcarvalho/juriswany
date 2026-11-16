@@ -36,9 +36,16 @@ class LocalCLI(unittest.TestCase):
         self.codex = self.base / "operador" / ".agents" / "skills" / "juriswany"
         self.claude = self.base / "operador" / ".claude" / "skills" / "juriswany"
 
-    def cli(self, *arguments, package=None, success=True):
+    def cli(self, *arguments, package=None, success=True, home=None):
         script = (package or self.package) / "scripts" / "local.py"
-        result = subprocess.run([sys.executable, str(script), *arguments],
+        command = [sys.executable, str(script), *arguments]
+        if home is not None:
+            wrapper = ("import pathlib, runpy, sys; from unittest.mock import patch; "
+                       "home = pathlib.Path(sys.argv[1]); sys.argv = sys.argv[2:]; "
+                       "\nwith patch.object(pathlib.Path, 'home', return_value=home): "
+                       "runpy.run_path(sys.argv[0], run_name='__main__')")
+            command = [sys.executable, "-c", wrapper, str(home), str(script), *arguments]
+        result = subprocess.run(command, cwd=self.base,
                                 env=self.environment, capture_output=True, text=True,
                                 timeout=30)
         self.assertNotIn("Traceback", result.stderr)
@@ -96,9 +103,13 @@ class LocalCLI(unittest.TestCase):
         self.assertFalse((self.codex / "perfil.json").exists())
 
     def test_reading_defaults_does_not_create_profile_and_export_is_reusable(self):
-        result = self.cli("perfil", "mostrar")["perfil"]
-        self.assertEqual(result, {"formato": 1, "revisao": 0, "resposta": "curta",
-                                  "execucao": "economica", "consulta": "semanal"})
+        shown = self.cli("perfil", "mostrar")
+        self.assertEqual(shown["perfil"], {"formato": 2, "revisao": 0, "resposta": "curta",
+                                         "execucao": "economica", "consulta": "semanal", "decisoes": {}})
+        self.assertEqual(shown["pendentes"], ["nome", "tratamento", "resposta", "execucao", "consulta"])
+        exported = self.cli("perfil", "exportar")
+        self.assertEqual(exported["pendentes"], shown["pendentes"])
+        self.assertNotIn("Prefiro", exported["texto"])
         self.assertFalse(self.profile_file().parent.exists())
         self.cli("perfil", "definir", "--nome", "Lia", "--resposta", "detalhada")
         self.cli("perfil", "definir", "--execucao", "aprofundada")
@@ -112,6 +123,113 @@ class LocalCLI(unittest.TestCase):
         self.assertIn("Lia", exported)
         self.assertIn("detalhada", exported)
         self.assertIn("não garante memória", exported)
+
+    def test_profile_explicit_defaults_refusals_and_reconsideration(self):
+        chosen = self.cli("perfil", "definir", "--nome", "Tawany", "--tratamento", "Doutora",
+                          "--resposta", "curta", "--consulta", "manual")
+        self.assertEqual(chosen["pendentes"], ["execucao"])
+        ignored = self.cli("perfil", "definir", "--ignorar", "consulta", "--ignorar", "nome")
+        self.assertEqual(ignored["perfil"]["consulta"], "semanal")
+        self.assertNotIn("nome", ignored["perfil"])
+        self.assertEqual(ignored["perfil"]["decisoes"]["nome"], "ignorada")
+        shown = self.cli("perfil", "mostrar")
+        self.assertEqual(shown["pendentes"], ["execucao"])
+        exported = self.cli("perfil", "exportar")["texto"]
+        self.assertIn("Confirmada: resposta = curta", exported)
+        self.assertIn("Pendente: execucao", exported)
+        self.assertIn("Não ofereça configurar consulta", exported)
+        self.assertNotIn("Tawany", exported)
+        reconsidered = self.cli("perfil", "definir", "--consulta", "manual", "--nome", "Tawany")
+        self.assertEqual(reconsidered["perfil"]["decisoes"]["consulta"], "configurada")
+        self.assertEqual(reconsidered["perfil"]["nome"], "Tawany")
+        self.assertEqual(reconsidered["perfil"]["revisao"], 3)
+
+    def test_profile_invalid_batches_create_nothing_and_preserve_existing(self):
+        for arguments in (("--nome", "Lia", "--ignorar", "nome"),
+                          ("--nome", "Lia", "--tratamento", ""),
+                          ("--ignorar", "todos"), ()):
+            with self.subTest(arguments=arguments):
+                self.cli("perfil", "definir", *arguments, success=False)
+                self.assertFalse(self.profile_file().parent.exists())
+        self.cli("perfil", "definir", "--nome", "Lia", "--ignorar", "consulta")
+        before = self.profile_file().read_bytes()
+        self.cli("perfil", "definir", "--consulta", "manual", "--ignorar", "consulta", success=False)
+        self.assertEqual(self.profile_file().read_bytes(), before)
+
+    def test_profile_legacy_migration_is_read_only_and_keeps_proven_choices(self):
+        self.profile_file().parent.mkdir(parents=True)
+        legacy = {"formato": 1, "revisao": 4, "nome": "Tawany", "tratamento": "Doutora",
+                  "resposta": "curta", "execucao": "equilibrada", "consulta": "manual"}
+        self.profile_file().write_text(json.dumps(legacy), encoding="utf-8")
+        before = (self.profile_file().read_bytes(), self.profile_file().stat().st_mtime_ns)
+        shown = self.cli("perfil", "mostrar")
+        self.assertEqual(shown["pendentes"], ["resposta"])
+        self.assertEqual(shown["perfil"]["decisoes"],
+                         {"nome": "configurada", "tratamento": "configurada",
+                          "execucao": "configurada", "consulta": "configurada"})
+        self.assertEqual(shown["perfil"]["revisao"], 4)
+        self.assertIn("Doutora Tawany", self.cli("perfil", "exportar")["texto"])
+        self.assertEqual(before, (self.profile_file().read_bytes(), self.profile_file().stat().st_mtime_ns))
+        self.cli("perfil", "definir", "--resposta", "curta")
+        saved = json.loads(self.profile_file().read_text(encoding="utf-8"))
+        self.assertEqual(saved["formato"], 2)
+        self.assertEqual(saved["revisao"], 5)
+
+    def test_profile_malformed_decisions_are_preserved(self):
+        valid = self.cli("perfil", "definir", "--nome", "Lia")["perfil"]
+        variants = [dict(valid, decisoes={"nome": "pendente"}),
+                    dict(valid, decisoes={"caso": "ignorada"}),
+                    dict(valid, decisoes={"nome": "ignorada"}),
+                    dict(valid, resposta="detalhada"),
+                    dict(valid, formato=3)]
+        for value in variants:
+            with self.subTest(value=value):
+                self.profile_file().write_text(json.dumps(value), encoding="utf-8")
+                before = self.profile_file().read_bytes()
+                self.cli("perfil", "mostrar", success=False)
+                self.cli("perfil", "definir", "--consulta", "manual", success=False)
+                self.assertEqual(self.profile_file().read_bytes(), before)
+
+    def test_profile_new_registry_preference_becomes_pending_without_rewriting(self):
+        self.cli("perfil", "definir", "--ignorar", "nome", "--ignorar", "tratamento",
+                 "--ignorar", "resposta", "--ignorar", "execucao", "--ignorar", "consulta")
+        before = self.profile_file().read_bytes()
+        wrapper = ("import runpy, sys; module = runpy.run_path(sys.argv[1]); "
+                   "module['PREFERENCES']['nova'] = {'padrao': 'sim', 'opcoes': ('sim', 'nao')}; "
+                   "sys.argv = [sys.argv[1], 'perfil', 'mostrar']; sys.exit(module['main']())")
+        result = subprocess.run([sys.executable, "-c", wrapper, str(self.package / "scripts" / "local.py")],
+                                env=self.environment, cwd=self.base, capture_output=True, text=True, timeout=30)
+        self.assertEqual(result.returncode, 0, result.stderr)
+        shown = json.loads(result.stdout)
+        self.assertEqual(shown["pendentes"], ["nova"])
+        self.assertEqual(shown["perfil"]["nova"], "sim")
+        self.assertEqual(self.profile_file().read_bytes(), before)
+
+    def test_profile_concurrent_choices_and_refusals_keep_all_decisions(self):
+        changes = [("--nome", "Lia"), ("--ignorar", "tratamento"),
+                   ("--resposta", "curta"), ("--ignorar", "execucao"), ("--consulta", "manual")]
+        with ThreadPoolExecutor(max_workers=5) as workers:
+            list(workers.map(lambda arguments: self.cli("perfil", "definir", *arguments), changes))
+        shown = self.cli("perfil", "mostrar")
+        self.assertEqual(shown["pendentes"], [])
+        self.assertEqual(shown["perfil"]["revisao"], 5)
+        self.assertEqual(shown["perfil"]["decisoes"]["execucao"], "ignorada")
+
+    def test_relative_xdg_paths_fall_back_to_temporary_home(self):
+        self.environment.update({"XDG_CONFIG_HOME": "config-relativa", "XDG_CACHE_HOME": "cache-relativo"})
+        home = self.base / "casa-ficticia"
+        shown = self.cli("perfil", "mostrar", home=home)
+        profile = home / ".config" / "juriswany" / "perfil.json"
+        self.assertEqual(shown["caminho"], str(profile))
+        self.assertFalse(profile.parent.exists())
+        self.cli("perfil", "definir", "--nome", "Lia", home=home)
+        self.assertTrue(profile.is_file())
+        self.initialize_git()
+        result = self.cli("atualizacoes", "--repositorio", str(self.repo), "--forcar", home=home)
+        self.assertEqual(result["estado"], "atual")
+        self.assertTrue(list((home / ".cache" / "juriswany").glob("*.json")))
+        self.assertFalse((self.base / "config-relativa").exists())
+        self.assertFalse((self.base / "cache-relativo").exists())
 
     def test_profile_concurrent_partial_changes_are_not_lost(self):
         changes = [("--nome", "Lia"), ("--tratamento", "Dra."),
@@ -307,7 +425,7 @@ class LocalCLI(unittest.TestCase):
     def test_reinstall_refreshes_changed_git_tree_with_identical_file_bytes(self):
         self.initialize_git()
         self.install()
-        before = {path.relative_to(self.codex): (path.read_bytes(), path.stat().st_mtime_ns)
+        before = {path.relative_to(self.codex): path.read_bytes()
                   for path in self.codex.rglob("*")
                   if path.is_file() and path.name != ".juriswany-install.json"}
         self.git("config", "core.filemode", "true")
@@ -315,11 +433,60 @@ class LocalCLI(unittest.TestCase):
         commit = self.commit()
         self.assertEqual(self.update()["estado"], "diferente")
         result = self.install()
-        self.assertEqual(result["estado"], "ja_instalado")
+        self.assertEqual(result["estado"], "substituido")
         self.assertEqual(result["procedencia"]["commit"], commit)
-        self.assertEqual({path.relative_to(self.codex): (path.read_bytes(), path.stat().st_mtime_ns)
+        self.assertTrue((self.codex / "SKILL.md").stat().st_mode & 0o111)
+        self.assertEqual({path.relative_to(self.codex): path.read_bytes()
                           for path in self.codex.rglob("*")
                           if path.is_file() and path.name != ".juriswany-install.json"}, before)
+        self.assertEqual(self.update()["estado"], "atual")
+
+    def test_executable_files_run_after_install_and_local_mode_changes_are_preserved(self):
+        executable = self.package / "scripts/exemplo"
+        executable.write_text("#!/bin/sh\nprintf 'fixture-ok\\n'\n", encoding="utf-8")
+        executable.chmod(0o755)
+        self.initialize_git()
+        self.install()
+        installed = self.codex / "scripts/exemplo"
+        result = subprocess.run([str(installed)], capture_output=True, text=True, timeout=5)
+        self.assertEqual(result.stdout, "fixture-ok\n")
+        marker = self.codex / ".juriswany-install.json"
+        before = marker.read_bytes()
+        for mode in (0o644, 0o655):
+            with self.subTest(mode=oct(mode)):
+                installed.chmod(mode)
+                self.install(success=False)
+                self.assertEqual(marker.read_bytes(), before)
+                self.assertEqual(stat.S_IMODE(installed.stat().st_mode), mode)
+
+    def test_incomplete_legacy_profile_is_preserved(self):
+        self.cli("perfil", "definir", "--nome", "Lia")
+        incomplete = '{"formato":1,"revisao":7}'
+        for action in (("mostrar",), ("definir", "--nome", "Outra pessoa")):
+            with self.subTest(action=action):
+                self.profile_file().write_text(incomplete, encoding="utf-8")
+                self.cli("perfil", *action, success=False)
+                self.assertEqual(self.profile_file().read_text(encoding="utf-8"), incomplete)
+
+    def test_legacy_marker_does_not_overwrite_unknown_mode_changes(self):
+        self.install()
+        marker = self.codex / ".juriswany-install.json"
+        value = json.loads(marker.read_text(encoding="utf-8"))
+        value["formato"] = 2
+        value.pop("executaveis")
+        marker.write_text(json.dumps(value), encoding="utf-8")
+        before = marker.read_bytes()
+        changed = self.codex / "SKILL.md"
+        changed.chmod(0o755)
+        self.install(success=False)
+        self.assertEqual(marker.read_bytes(), before)
+        self.assertTrue(changed.stat().st_mode & 0o111)
+
+    def test_fallback_license_is_distributed_as_non_executable_text(self):
+        self.initialize_git()
+        (self.repo / "LICENSE").chmod(0o755)
+        self.assertEqual(self.install()["procedencia"]["tipo"], "git")
+        self.assertEqual(stat.S_IMODE((self.codex / "LICENSE").stat().st_mode), 0o644)
         self.assertEqual(self.update()["estado"], "atual")
 
     def test_reinstall_preserves_verified_provenance_when_source_is_unverified(self):

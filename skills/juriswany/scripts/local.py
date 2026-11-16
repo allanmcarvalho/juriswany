@@ -27,14 +27,12 @@ MARKER = ".juriswany-install.json"
 OFFICIAL = "https://github.com/allanmcarvalho/juriswany.git"
 RELEASES = "https://api.github.com/repos/allanmcarvalho/juriswany/releases/latest"
 RELEASE_TAG = r"v(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)"
-DEFAULT_PROFILE = {
-    "formato": 1, "revisao": 0, "resposta": "curta",
-    "execucao": "economica", "consulta": "semanal",
-}
-OPTIONS = {
-    "resposta": ("curta", "detalhada"),
-    "execucao": ("economica", "equilibrada", "aprofundada"),
-    "consulta": ("manual", "diaria", "semanal"),
+PREFERENCES = {
+    "nome": {"limite": 120},
+    "tratamento": {"limite": 40},
+    "resposta": {"padrao": "curta", "opcoes": ("curta", "detalhada")},
+    "execucao": {"padrao": "economica", "opcoes": ("economica", "equilibrada", "aprofundada")},
+    "consulta": {"padrao": "semanal", "opcoes": ("manual", "diaria", "semanal")},
 }
 IGNORED = {"__pycache__", ".DS_Store", ".git", ".pytest_cache"}
 
@@ -95,28 +93,85 @@ def atomic_json(path, value):
             os.unlink(name)
 
 
+def xdg_path(variable, fallback):
+    configured = os.environ.get(variable)
+    if configured and Path(configured).is_absolute():
+        return Path(configured)
+    return Path.home() / fallback
+
+
 def profile_path():
-    base = Path(os.environ.get("XDG_CONFIG_HOME") or Path.home() / ".config")
-    return base / "juriswany" / "perfil.json"
+    return xdg_path("XDG_CONFIG_HOME", ".config") / "juriswany" / "perfil.json"
+
+
+def default_profile():
+    return {"formato": 2, "revisao": 0, "decisoes": {},
+            **{field: spec["padrao"] for field, spec in PREFERENCES.items() if "padrao" in spec}}
 
 
 def validate_profile(value):
-    fields = set(DEFAULT_PROFILE) | {"nome", "tratamento"}
-    if (not isinstance(value, dict) or set(value) - fields
-            or not set(DEFAULT_PROFILE).issubset(value)
-            or type(value.get("formato")) is not int or value["formato"] != 1
+    required = {"formato", "revisao"}
+    fields = set(PREFERENCES) | required | {"decisoes"}
+    if (not isinstance(value, dict) or set(value) - fields or not required.issubset(value)
+            or type(value.get("formato")) is not int or value["formato"] not in (1, 2)
             or type(value.get("revisao")) is not int or value["revisao"] < 0):
         raise LocalError("Perfil inválido ou versão desconhecida. O arquivo foi preservado.")
-    for field, choices in OPTIONS.items():
-        if value[field] not in choices:
-            raise LocalError("Valor inválido para {} no perfil.".format(field))
-    for field, limit in (("nome", 120), ("tratamento", 40)):
+    for field, spec in PREFERENCES.items():
         if field in value:
             text = value[field]
-            if (not isinstance(text, str) or not text.strip() or len(text) > limit
-                    or any(ord(char) < 32 or ord(char) == 127 for char in text)):
-                raise LocalError("{} deve ser texto de 1 a {} caracteres, sem controles.".format(field, limit))
-    return value
+            if "opcoes" in spec:
+                if text not in spec["opcoes"]:
+                    raise LocalError("Valor inválido para {} no perfil.".format(field))
+            elif (not isinstance(text, str) or not text.strip() or len(text) > spec["limite"]
+                  or any(ord(char) < 32 or ord(char) == 127 for char in text)):
+                raise LocalError("{} deve ser texto de 1 a {} caracteres, sem controles.".format(field, spec["limite"]))
+    normalized = dict(value)
+    if value["formato"] == 1:
+        if "decisoes" in value or not {"resposta", "execucao", "consulta"}.issubset(value):
+            raise LocalError("Perfil legado inválido ou incompleto. O arquivo foi preservado.")
+        normalized.update(formato=2, decisoes={
+            field: "configurada" for field, spec in PREFERENCES.items()
+            if field in value and ("padrao" not in spec or value[field] != spec["padrao"])})
+    decisions = normalized.get("decisoes")
+    if (not isinstance(decisions, dict) or set(decisions) - set(PREFERENCES)
+            or any(state not in ("configurada", "ignorada") for state in decisions.values())):
+        raise LocalError("Decisões inválidas no perfil. O arquivo foi preservado.")
+    for field, spec in PREFERENCES.items():
+        if decisions.get(field) == "configurada":
+            consistent = field in normalized
+        elif "padrao" in spec:
+            consistent = normalized.get(field, spec["padrao"]) == spec["padrao"]
+            normalized.setdefault(field, spec["padrao"])
+        else:
+            consistent = field not in normalized
+        if not consistent:
+            raise LocalError("Valor e decisão incompatíveis para {}. O arquivo foi preservado.".format(field))
+    normalized["decisoes"] = dict(decisions)
+    return normalized
+
+
+def pending_preferences(profile):
+    return [field for field in PREFERENCES if field not in profile["decisoes"]]
+
+
+def apply_preferences(profile, changes, ignored):
+    if not changes and not ignored:
+        raise LocalError("Informe ao menos uma preferência para definir ou ignorar.")
+    if (set(changes) | set(ignored)) - set(PREFERENCES):
+        raise LocalError("Preferência desconhecida.")
+    if set(changes) & set(ignored):
+        raise LocalError("Não é possível definir e ignorar a mesma preferência no mesmo pedido.")
+    value = dict(profile, decisoes=dict(profile["decisoes"]))
+    for field in ignored:
+        if "padrao" in PREFERENCES[field]:
+            value[field] = PREFERENCES[field]["padrao"]
+        else:
+            value.pop(field, None)
+        value["decisoes"][field] = "ignorada"
+    value.update(changes)
+    value["decisoes"].update({field: "configurada" for field in changes})
+    value["revisao"] += 1
+    return validate_profile(value)
 
 
 def load_profile():
@@ -125,40 +180,44 @@ def load_profile():
         raise LocalError("Diretório do perfil não pode ser link simbólico.")
     if path.exists() or path.is_symlink():
         return validate_profile(read_json(path))
-    return DEFAULT_PROFILE.copy()
+    return default_profile()
 
 
 def profile_command(args):
     if args.acao == "definir":
-        changes = {key: getattr(args, key) for key in ("nome", "tratamento", *OPTIONS)
+        changes = {key: getattr(args, key) for key in PREFERENCES
                    if getattr(args, key) is not None}
-        if not changes:
-            raise LocalError("Informe ao menos uma preferência para definir.")
+        apply_preferences(default_profile(), changes, args.ignorar)
         path = profile_path()
         private_dir(path.parent)
         with locked(path.parent / ".perfil.lock"):
-            value = load_profile()
-            value.update(changes)
-            value["revisao"] += 1
-            validate_profile(value)
+            value = apply_preferences(load_profile(), changes, args.ignorar)
             atomic_json(path, value)
-        return {"estado": "salvo", "caminho": str(path), "perfil": value}
+        return {"estado": "salvo", "caminho": str(path), "perfil": value,
+                "pendentes": pending_preferences(value)}
     value = load_profile()
     if args.acao == "exportar":
         lines = ["Preferências para esta conversa:"]
-        if "nome" in value:
-            lines.append("Meu nome é {}.".format(value["nome"]))
-        if "tratamento" in value:
-            lines.append("Use o tratamento {}.".format(value["tratamento"]))
-        else:
-            lines.append("Use tratamento neutro.")
-        lines.extend([
-            "Prefiro resposta {} e execução {}.".format(value["resposta"], value["execucao"]),
-            "A preferência de consulta de atualizações é {}.".format(value["consulta"]),
-            "Este bloco não garante memória em conversas futuras.",
-        ])
-        return {"estado": "exportado", "texto": "\n".join(lines)}
-    return {"estado": "lido", "caminho": str(profile_path()), "perfil": value}
+        address = " ".join(value[field] for field in ("tratamento", "nome") if field in value)
+        if address:
+            lines.append("Chame-me de {} nas respostas dirigidas a mim.".format(address))
+        for field in PREFERENCES:
+            state = value["decisoes"].get(field)
+            if state == "configurada":
+                lines.append("Confirmada: {} = {}.".format(field, value[field]))
+            elif state == "ignorada":
+                lines.append("Não ofereça configurar {}. Esta opção foi recusada expressamente.".format(field))
+                if field in value:
+                    lines.append("Padrão efetivo de {} = {}.".format(field, value[field]))
+            else:
+                detail = " Padrão efetivo = {}.".format(value[field]) if field in value else ""
+                lines.append("Pendente: {}. Ainda não houve escolha nem recusa.{}".format(field, detail))
+        lines.extend(["Ofereça configurar somente os campos pendentes uma vez por conversa, sem bloquear a tarefa.",
+                      "Use nome e tratamento confirmados nas respostas seguintes, sem inseri-los automaticamente em documentos de terceiros.",
+                      "Este bloco não garante memória em conversas futuras."])
+        return {"estado": "exportado", "texto": "\n".join(lines), "pendentes": pending_preferences(value)}
+    return {"estado": "lido", "caminho": str(profile_path()), "perfil": value,
+            "pendentes": pending_preferences(value)}
 
 
 def safe_relative(name):
@@ -192,8 +251,7 @@ def snapshot(root, source=False):
     return files
 
 
-def manifest(root):
-    value = read_json(root / "manifest.json")
+def validate_manifest(value):
     expected = {"formato", "nome", "versao", "repositorio", "referencia", "caminho"}
     if (not isinstance(value, dict) or set(value) != expected
             or type(value["formato"]) is not int or value["formato"] != 1
@@ -204,6 +262,16 @@ def manifest(root):
             or not re.fullmatch(r"\d+\.\d+\.\d+", value["versao"])):
         raise LocalError("Manifesto inválido ou incompatível.")
     return value
+
+
+def manifest(root):
+    return validate_manifest(read_json(root / "manifest.json"))
+
+
+def executable_files(root, files):
+    return sorted(name for name in files
+                  if (name != "LICENSE" or (root / name).exists())
+                  and (root / name).stat().st_mode & stat.S_IXUSR)
 
 
 def validate_provenance(value):
@@ -226,8 +294,10 @@ def managed(root):
     value = read_json(marker)
     common = {"gerenciador", "formato", "procedencia", "arquivos"}
     if (not isinstance(value, dict) or type(value.get("formato")) is not int
-            or value["formato"] not in (1, 2)
-            or set(value) != (common if value["formato"] == 1 else common | {"canal", "release"})
+            or value["formato"] not in (1, 2, 3)
+            or set(value) != (common if value["formato"] == 1 else
+                              common | {"canal", "release"} |
+                              ({"executaveis"} if value["formato"] == 3 else set()))
             or value["gerenciador"] != "juriswany"
             or not isinstance(value["arquivos"], dict) or not value["arquivos"]):
         raise LocalError("Marcador inválido em {}. Destino preservado.".format(root))
@@ -253,7 +323,15 @@ def managed(root):
                   if path.is_dir()} - allowed_dirs
     if present != expected or extra_dirs:
         raise LocalError("Instalação contém alterações ou arquivos extras em {}. Destino preservado.".format(root))
-    manifest(root)
+    if value["formato"] == 3:
+        modes = value["executaveis"]
+        if (not isinstance(modes, list) or not all(isinstance(name, str) for name in modes)
+                or modes != sorted(set(modes)) or not set(modes).issubset(expected)
+                or modes != executable_files(root, expected)):
+            raise LocalError("Modos executáveis alterados ou inválidos. Destino preservado.")
+    metadata = manifest(root)
+    if value["canal"] == "stable" and value["release"] != "v" + metadata["versao"]:
+        raise LocalError("A release não corresponde à versão do manifesto. Destino preservado.")
     return value
 
 
@@ -261,6 +339,7 @@ def git(*arguments, cwd=None):
     env = {key: value for key, value in os.environ.items() if not key.startswith("GIT_")}
     env.update({"GIT_TERMINAL_PROMPT": "0", "GIT_ASKPASS": "/usr/bin/false",
                 "GIT_CONFIG_GLOBAL": os.devnull, "GIT_CONFIG_SYSTEM": os.devnull,
+                "GIT_NO_REPLACE_OBJECTS": "1",
                 "GIT_SSH_COMMAND": "ssh -oBatchMode=yes -oConnectTimeout=5"})
     try:
         result = subprocess.run(
@@ -305,7 +384,7 @@ def verified_provenance(root, files, license_path, repo, commit, external=False)
         path = root / name
         if path.is_symlink() or not path.is_file():
             raise LocalError("Arquivo da origem ausente ou irregular.")
-        if external and bool(path.stat().st_mode & 0o111) != (mode == b"100755"):
+        if bool(path.stat().st_mode & stat.S_IXUSR) != (mode == b"100755"):
             raise LocalError("Modo do arquivo diverge da árvore Git.")
         content = path.read_bytes()
         if git("cat-file", "blob", digest.decode(), cwd=repo) != content:
@@ -365,7 +444,8 @@ def source_package():
 
 
 def install(args):
-    _, files, provenance, license_path = source_package()
+    metadata, files, provenance, license_path = source_package()
+    executables = executable_files(PACKAGE, files)
     if (args.origem_git is None) != (args.commit is None):
         raise LocalError("Use --origem-git e --commit juntos.")
     if args.release and not valid_tag(args.release):
@@ -408,8 +488,8 @@ def install(args):
                     and not (destination / MARKER).is_symlink()):
                 if destination.is_symlink() or snapshot(destination) != files:
                     raise LocalError("A cópia nativa difere da origem verificada. Destino preservado.")
-                if any(bool((destination / name).stat().st_mode & 0o111)
-                       != bool((PACKAGE / name).stat().st_mode & 0o111) for name in files):
+                if any(bool((destination / name).stat().st_mode & stat.S_IXUSR)
+                       != bool((PACKAGE / name).stat().st_mode & stat.S_IXUSR) for name in files):
                     raise LocalError("O modo dos arquivos da cópia nativa foi alterado. Destino preservado.")
                 allowed_dirs = {str(parent) for name in files for parent in PurePosixPath(name).parents}
                 if any(path.relative_to(destination).as_posix() not in allowed_dirs
@@ -418,6 +498,9 @@ def install(args):
                 adopt = True
             else:
                 current = managed(destination)
+                if (current["formato"] < 3 and set(executable_files(destination, current["arquivos"]))
+                        != set(executables).intersection(current["arquivos"])):
+                    raise LocalError("O marcador antigo não comprova os modos anteriores. Destino preservado.")
         channel = args.canal or (current["canal"] if current else "dev")
         release = args.release
         if channel == "dev" and release is not None:
@@ -427,6 +510,8 @@ def install(args):
                 release = current["release"]
             if not valid_tag(release) or provenance["tipo"] != "git":
                 raise LocalError("O canal stable exige --release e procedência Git verificada.")
+            if release != "v" + metadata["versao"]:
+                raise LocalError("A release não corresponde à versão do manifesto.")
             if origin is None:
                 try:
                     origin = local_repository(PACKAGE)
@@ -440,14 +525,16 @@ def install(args):
                              cwd=origin).decode().strip()
                 if tagged != provenance["commit"]:
                     raise LocalError("A tag da release não aponta para o commit verificado.")
-        marker = {"gerenciador": "juriswany", "formato": 2, "procedencia": provenance,
-                  "arquivos": files, "canal": channel, "release": release}
+        marker = {"gerenciador": "juriswany", "formato": 3, "procedencia": provenance,
+                  "arquivos": files, "canal": channel, "release": release,
+                  "executaveis": executables}
         if adopt:
             atomic_json(destination / MARKER, marker)
             return {"estado": "adotado", "destino": str(destination), "recuperado": recovered,
                     "procedencia": provenance, "canal": channel, "release": release}
-        if current and current["arquivos"] == files:
-            refreshed = dict(current, formato=2, canal=channel, release=release)
+        if (current and current["arquivos"] == files
+                and executable_files(destination, files) == executables):
+            refreshed = dict(current, formato=3, canal=channel, release=release, executaveis=executables)
             if (provenance["tipo"] == "git"
                     and (current["procedencia"].get("arvore") != provenance["arvore"]
                          or current["canal"] != channel
@@ -465,6 +552,7 @@ def install(args):
                 target.parent.mkdir(parents=True, exist_ok=True)
                 source = license_path if name == "LICENSE" else PACKAGE / name
                 shutil.copyfile(source, target)
+                target.chmod(0o755 if name in executables else 0o644)
             atomic_json(staging / MARKER, marker)
             managed(staging)
             if current:
@@ -559,7 +647,7 @@ def updates(args):
         if not remote_path.is_absolute():
             remote_path = remote_path.absolute()
         repository = str(remote_path)
-    cache_base = Path(os.environ.get("XDG_CACHE_HOME") or Path.home() / ".cache") / "juriswany"
+    cache_base = xdg_path("XDG_CACHE_HOME", ".cache") / "juriswany"
     private_dir(cache_base)
     identity = "\x00".join((str(PACKAGE), repository, provenance["commit"], provenance["arvore"],
                            files["LICENSE"], channel, release or "", endpoint))
@@ -595,6 +683,11 @@ def updates(args):
                     reference, cwd=temporary)
                 commit = git("rev-parse", "FETCH_HEAD^{commit}", cwd=temporary).decode().strip()
                 tree = git("rev-parse", "FETCH_HEAD:" + metadata["caminho"], cwd=temporary).decode().strip()
+                if channel == "stable":
+                    remote_manifest = validate_manifest(json.loads(git(
+                        "show", "FETCH_HEAD:" + metadata["caminho"] + "/manifest.json", cwd=temporary)))
+                    if "v" + remote_manifest["versao"] != published:
+                        raise LocalError("A release publicada não corresponde à versão do manifesto.")
                 remote_license = hashlib.sha256(git_license(temporary, "FETCH_HEAD")).hexdigest()
                 listing = git("ls-tree", "FETCH_HEAD:" + metadata["caminho"], cwd=temporary)
                 if any(entry.endswith(b"\tLICENSE") for entry in listing.splitlines()):
@@ -610,8 +703,6 @@ def updates(args):
                            "licenca_remota": remote_license})
             if content_changed:
                 result["mensagem"] = "O pacote publicado tem conteúdo diferente. A consulta não instala código."
-            elif release_changed:
-                result["mensagem"] = "A release publicada é diferente, mas o conteúdo do pacote é igual ao instalado."
             if not args.repositorio:
                 result["comparacao"] = OFFICIAL.removesuffix(".git") + "/compare/" + provenance["commit"] + "..." + commit
         except (LocalError, OSError, UnicodeError, ValueError) as error:
@@ -641,10 +732,9 @@ def main():
     actions.add_parser("mostrar")
     actions.add_parser("exportar")
     setter = actions.add_parser("definir")
-    setter.add_argument("--nome")
-    setter.add_argument("--tratamento")
-    for field, choices in OPTIONS.items():
-        setter.add_argument("--" + field, choices=choices)
+    for field, spec in PREFERENCES.items():
+        setter.add_argument("--" + field, choices=spec.get("opcoes"))
+    setter.add_argument("--ignorar", action="append", choices=tuple(PREFERENCES), default=[])
     update = commands.add_parser("atualizacoes", help="Comparar o pacote sem instalar código remoto.")
     update.add_argument("--forcar", action="store_true")
     update.add_argument("--repositorio")

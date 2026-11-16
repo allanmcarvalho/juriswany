@@ -21,12 +21,20 @@ class DistributionCLI(unittest.TestCase):
 
     def release_source(self):
         shutil.copyfile(self.repo / "LICENSE", self.package / "LICENSE")
+        manifest = self.package / "manifest.json"
+        metadata = json.loads(manifest.read_text(encoding="utf-8"))
+        metadata["versao"] = "0.2.0"
+        manifest.write_text(json.dumps(metadata), encoding="utf-8")
         commit = self.initialize_git()
         self.git("tag", "v0.2.0")
         return commit
 
     def publish(self, tag="v0.3.0"):
         (self.package / "SKILL.md").write_text("Nova versão fictícia.\n", encoding="utf-8")
+        manifest = self.package / "manifest.json"
+        metadata = json.loads(manifest.read_text(encoding="utf-8"))
+        metadata["versao"] = tag[1:]
+        manifest.write_text(json.dumps(metadata), encoding="utf-8")
         commit = self.commit()
         self.git("tag", tag)
         return commit
@@ -96,7 +104,7 @@ class DistributionCLI(unittest.TestCase):
         first = self.stable(package=native, commit=commit)
         self.assertEqual(first["procedencia"]["commit"], commit)
         self.assertEqual(first["canal"], "stable")
-        self.assertEqual(json.loads(self.marker().read_text())["formato"], 2)
+        self.assertEqual(json.loads(self.marker().read_text())["formato"], 3)
         before = self.marker().read_bytes()
         (native / "SKILL.md").write_text("Conteúdo adulterado.\n", encoding="utf-8")
         self.stable(package=native, commit=commit, success=False)
@@ -130,6 +138,37 @@ class DistributionCLI(unittest.TestCase):
         result = self.install("--canal", "stable", "--release", "v0.2.0", "--origem-git",
                               str(bare), "--commit", commit, package=native)
         self.assertEqual(result["procedencia"]["commit"], commit)
+
+    def test_external_executable_requires_owner_execute_permission(self):
+        (self.package / "SKILL.md").chmod(0o755)
+        commit = self.release_source()
+        native = self.native_copy()
+        (native / "SKILL.md").chmod(0o655)
+        self.stable(package=native, commit=commit, success=False)
+        self.assertFalse(self.codex.exists())
+
+    def test_git_replacements_cannot_change_the_pinned_package(self):
+        original = self.release_source()
+        native = self.native_copy()
+        (self.package / "SKILL.md").write_text("Outro pacote fictício.\n", encoding="utf-8")
+        replaced = self.commit()
+        self.git("replace", original, replaced)
+        self.environment["GIT_NO_REPLACE_OBJECTS"] = "0"
+        self.stable(commit=original, success=False)
+        self.assertFalse(self.codex.exists())
+        result = self.stable(package=native, commit=original)
+        self.assertEqual(result["procedencia"]["commit"], original)
+        self.assertEqual((self.codex / "SKILL.md").read_bytes(), (native / "SKILL.md").read_bytes())
+
+    def test_stable_tag_must_match_the_package_version(self):
+        self.release_source()
+        self.git("tag", "v9.9.9")
+        self.install("--canal", "stable", "--release", "v9.9.9", success=False)
+        self.assertFalse(self.codex.exists())
+        self.stable()
+        before = self.marker().read_bytes()
+        self.install("--canal", "stable", "--release", "v9.9.9", success=False)
+        self.assertEqual(self.marker().read_bytes(), before)
 
     def test_origin_flags_and_stable_release_are_required_and_validated(self):
         self.release_source()
@@ -220,10 +259,11 @@ class DistributionCLI(unittest.TestCase):
         legacy = json.loads(self.marker().read_text())
         legacy.pop("canal")
         legacy.pop("release")
+        legacy.pop("executaveis")
         legacy["formato"] = 1
         self.marker().write_text(json.dumps(legacy), encoding="utf-8")
         self.assertEqual(self.install()["canal"], "dev")
-        self.assertEqual(json.loads(self.marker().read_text())["formato"], 2)
+        self.assertEqual(json.loads(self.marker().read_text())["formato"], 3)
         before = self.marker().read_bytes(), self.marker().stat().st_mtime_ns
         self.install()
         self.assertEqual((self.marker().read_bytes(), self.marker().stat().st_mtime_ns), before)
@@ -265,17 +305,18 @@ class DistributionCLI(unittest.TestCase):
             self.assertNotIn("commit_remoto", result)
             self.assertEqual(result["canal"], "stable")
 
-    def test_new_release_with_identical_bytes_is_not_reported_as_content_change(self):
+    def test_inconsistent_publication_is_not_presented_as_an_update(self):
         self.release_source()
         self.stable()
+        before = self.marker().read_bytes()
         self.git("tag", "v0.3.0")
         with self.api("v0.3.0") as (endpoint, _):
             result = self.updates(endpoint)
-        self.assertEqual(result["estado"], "diferente")
-        self.assertFalse(result.get("conteudo_alterado", True))
-        self.assertTrue(result.get("release_diferente", False))
-        self.assertEqual(result["arvore_origem"], result["arvore_remota"])
-        self.assertNotIn("conteúdo diferente", result["mensagem"])
+        self.assertEqual(result["estado"], "indisponivel")
+        self.assertEqual(result["release_publicada"], "v0.3.0")
+        self.assertIn("manifesto", result["mensagem"])
+        self.assertNotIn("conteudo_alterado", result)
+        self.assertEqual(self.marker().read_bytes(), before)
 
     def test_api_invalid_responses_and_offline_are_informative(self):
         self.release_source()

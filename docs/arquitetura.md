@@ -26,11 +26,16 @@ Essas referências descrevem métodos examinados durante o desenho. Não são de
 
 `SKILL.md` contém a identidade de secretário robótico e contratos curtos das rotinas. As referências aprofundam tarefas difíceis e oferecem instruções coláveis em uma conversa sem instalação.
 
-O utilitário Python concentra o acesso ao disco e ao Git. Ele possui três dados distintos:
+O utilitário Python concentra o acesso ao disco e ao Git. Ele separa os seguintes dados:
 
 - O perfil pertence ao operador e fica fora da instalação.
-- O manifesto identifica os arquivos instalados e a procedência que foi possível comprovar.
+- O manifesto identifica o pacote e sua versão.
+- O marcador registra os arquivos instalados, seus indicadores de execução e a procedência que foi possível comprovar.
 - O cache registra consultas ao repositório, separado das preferências.
+
+O perfil de formato 2 distingue o valor efetivo da decisão por preferência. Uma decisão pode ser configurada ou ignorada. A ausência de decisão significa pendência e permite sugerir uma opção nova sem repetir as que a pessoa recusou. O primeiro uso oferece configurar as pendências sem interromper a entrega. Nome e tratamento confirmados orientam as respostas seguintes, sem deduzir a identidade de quem opera pela homenagem do projeto.
+
+A leitura aceita perfis de formato 1 e faz a migração em memória. Nome, tratamento e opções diferentes dos padrões conservam a confirmação. As opções iguais aos padrões antigos exigem confirmação, pois o formato anterior não registrava se tinham sido escolhidas. Só uma gravação solicitada persiste o novo formato. O utilitário antigo não lê o perfil 2.
 
 Uma informação pode ser um relato, um trecho observado em documento, uma fonte oficial consultada ou uma pendência. Reaproveitar uma frase em outra rotina não muda seu estado de evidência.
 
@@ -50,7 +55,11 @@ O marcador da instalação guarda seu canal. Produção usa `stable` e acompanha
 
 O instalador reconhece as cópias que gerencia e confere sua integridade antes de substituir arquivos. Uma pasta desconhecida ou modificada permanece intacta. A adoção de uma cópia nativa exige opção explícita e igualdade exata com a revisão verificada. A licença acompanha a pasta da skill, e um teste confere sua igualdade com a licença da raiz.
 
+O marcador de formato 3 registra quais arquivos são executáveis. A cópia conserva esse indicador e a verificação detecta alterações locais de modo. Marcadores 1 e 2 continuam legíveis. Uma atualização com divergência de modo em uma cópia antiga é recusada quando não há registro que permita distinguir mudança oficial de alteração local. A tag estável precisa corresponder à versão do manifesto. As consultas Git desabilitam objetos de substituição para conferir os bytes do SHA fixado.
+
 As gravações do perfil e as trocas da instalação usam bloqueio e substituição atômica. A troca mantém material suficiente para recuperar uma interrupção. Atualizar a skill não altera o perfil.
+
+Bases XDG relativas são ignoradas. Perfil e cache usam, nesse caso, os destinos padrão absolutos no diretório pessoal, em vez de criar arquivos na pasta corrente de um caso.
 
 A consulta resolve a referência pelo canal instalado e compara a árvore Git do pacote e o conteúdo da licença distribuída. No canal estável, uma mudança só em `main` não indica atualização. A ausência de release estável é diferente de uma falha de rede. Uma árvore ou licença diferente significa conteúdo publicado diferente. O programa não presume avanço de versão quando não verificou essa relação.
 

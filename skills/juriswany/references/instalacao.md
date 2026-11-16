@@ -20,7 +20,7 @@ Na primeira instalação, use um diretório de skills autorizado e reconhecido p
 
 ## Resolva a versão e fixe a revisão
 
-1. Para `stable`, consulte a última release em `https://api.github.com/repos/allanmcarvalho/juriswany/releases/latest`. Confira publicação, `draft: false`, `prerelease: false` e tag `vMAJOR.MINOR.PATCH`.
+1. Para `stable`, consulte a última release em `https://api.github.com/repos/allanmcarvalho/juriswany/releases/latest`. Confira publicação, `draft: false`, `prerelease: false` e tag `vMAJOR.MINOR.PATCH`. A versão do manifesto precisa coincidir com a tag sem o prefixo `v`.
 2. Para `dev`, selecione `refs/heads/main`.
 3. Prepare um repositório Git temporário com os objetos da referência escolhida. Resolva tags anotadas até o commit. Guarde o SHA completo e a tag da release.
 4. Baixe e inspecione somente esse SHA. Se a referência ou os arquivos mudarem durante a preparação, resolva a divergência antes de publicar outros bytes.
@@ -61,7 +61,7 @@ instalar codex
 
 Para Claude Code, use `instalar claude`. Para desenvolvimento, passe `--canal dev` e omita `--release`. O repositório temporário precisa conter os objetos e a referência selecionada. O helper confere os bytes e o inventário do pacote contra a árvore daquele commit antes de registrar a procedência.
 
-A pasta de uma instalação gerenciada passa pelas proteções de integridade, bloqueio, cópia de segurança e recuperação. O perfil pessoal fica fora dessa troca.
+A pasta de uma instalação gerenciada passa pelas proteções de integridade, modos executáveis, bloqueio, cópia de segurança e recuperação. O marcador novo usa formato 3 e aceita a leitura dos formatos 1 e 2. Se um marcador antigo não comprovar a origem de uma divergência de modo, preserve a cópia e registre a pendência. Não altere permissões nem apague a pasta para contornar a recusa. O perfil pessoal fica fora dessa troca.
 
 Uma cópia nativa sem marcador só pode ser adotada com `--adotar-nativa` e igualdade exata com a revisão verificada. Não use a opção para ignorar diferenças. Se a cópia antiga não corresponder ao alvo novo, identifique e verifique primeiro a revisão própria da cópia antiga. Sem procedência suficiente ou com alterações locais, preserve a pasta e explique o impedimento.
 

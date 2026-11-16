@@ -20,7 +20,7 @@ Tawany é uma futura advogada dedicada e competente, já aprovada no Exame da OA
 
 ## Estado do projeto
 
-Esta é a primeira versão instalável. O pacote reúne instruções para oito rotinas jurídicas e um utilitário local para instalação, preferências e consulta de atualizações.
+O pacote instalável reúne instruções para oito rotinas jurídicas e um utilitário local para instalação, preferências e consulta de atualizações.
 
 O agente que carrega a skill executa o trabalho. Pesquisa, leitura de arquivos e delegação usam as ferramentas disponíveis nessa conversa. O Juriswany não exige chave de API nem escolhe um modelo específico.
 
@@ -54,6 +54,8 @@ O [procedimento de instalação para agentes](INSTALL.md) orienta a seleção, a
 A instalação na máquina depende das ferramentas e permissões do aplicativo. Uma conversa sem acesso local pode usar as rotinas, mas não deve confirmar que instalou arquivos. A sintaxe de invocação segue as documentações de [ChatGPT e Codex](https://learn.chatgpt.com/docs/build-skills.md) e de [Claude Code](https://code.claude.com/docs/en/skills).
 
 ## Comece pela conversa
+
+O [Guia de uso e comandos](docs/uso.md) reúne rotinas, exemplos, perfil e modos de execução.
 
 No Codex, por exemplo:
 
@@ -94,7 +96,11 @@ Me chame de Dra. Lia. Prefiro respostas curtas, execução econômica e consulta
 
 Quando há armazenamento local, o agente guarda essas preferências em um perfil separado da instalação. Atualizar a skill preserva esse perfil. O nome vem do que você informou. A homenagem à Tawany e o nome da conta do computador não definem quem é o operador.
 
-O perfil guarda preferências, sem documentos de casos ou credenciais. Em conversa sem armazenamento local, o secretário pode entregar um bloco copiável para você levar a outro chat.
+No primeiro uso e quando houver preferências novas pendentes, o Juriswany oferece uma configuração breve e continua a tarefa. Você pode escolher só alguns campos. "Depois" e silêncio mantêm os demais pendentes. Uma recusa explícita deixa de oferecer apenas os campos recusados. Uma escolha posterior substitui essa recusa.
+
+Nome e tratamento confirmados continuam nas respostas seguintes. Se você pedir "Me chame de Doutora Tawany", o secretário usa "Doutora Tawany" ao falar com você. Esse tratamento não comprova profissão ou inscrição na OAB, nem entra automaticamente em documentos de terceiros.
+
+O perfil guarda preferências, sem documentos de casos ou credenciais. A exportação distingue escolhas confirmadas, padrões ainda pendentes e recusas. Sem armazenamento local, essas decisões valem na conversa. O secretário pode entregar um bloco copiável para outro chat, sem prometer memória futura.
 
 ## Atualize pedindo ao agente
 

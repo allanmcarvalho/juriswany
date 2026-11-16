@@ -10,6 +10,8 @@ Este procedimento é para quem mantém o repositório. A pessoa que usa o Jurisw
 4. Valide o formato de `SKILL.md`, suas referências e os metadados da interface.
 5. Faça a revisão dos arquivos e registre o commit que será publicado.
 
+A suíte inclui a conferência estrutural da biblioteca de fragmentos e contracasos do índice. Ela não avalia a adequação jurídica dos exemplos. Para mudanças no perfil, confira primeiro uso, escolhas parciais, recusas e leitura dos formatos anteriores. Mudanças no marcador também exigem conferir permissões executáveis e preservação de alterações locais.
+
 A tag deve usar `vMAJOR.MINOR.PATCH`, com a versão declarada no manifesto. Uma tag sem uma release publicada não passa a ser a versão de produção.
 
 ## Publique a release

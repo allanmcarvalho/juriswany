@@ -1,6 +1,6 @@
 # Desenho das fontes de consulta e dos fragmentos de redação
 
-Proposta em estudo, registrada em 15/11/2026. O catálogo inicial de fontes e os exemplos de fragmentos são materiais de desenho. Sua integração às rotinas instaláveis ainda está pendente.
+Estudo registrado em 15/11/2026. O catálogo de fontes e a biblioteca editorial de fragmentos podem ser consultados neste repositório. Sua integração às rotinas instaláveis ainda está pendente.
 
 O Juriswany precisa encontrar fundamentos e conferir objeções durante a pesquisa jurídica. Para redigir, precisa de blocos reutilizáveis que atendam à finalidade da peça, aos fatos e ao procedimento. A proposta separa essas duas responsabilidades e acrescenta roteiros de composição.
 
@@ -9,8 +9,8 @@ O Juriswany precisa encontrar fundamentos e conferir objeções durante a pesqui
 | Material | Conteúdo | Responsabilidade |
 | --- | --- | --- |
 | [Catálogo de fontes](fontes.md) | Portais, acervos e serviços de consulta, classificados em uma ou mais categorias. | Indicar onde buscar e conferir o conteúdo jurídico pertinente. |
-| [Biblioteca de fragmentos](fragmentos.md) | Blocos de endereçamento, apresentação, fatos, argumentos, defesa, pedidos e fechamento. | Oferecer redações adaptáveis com condições de uso e dados necessários. |
-| Roteiros de composição, descritos na biblioteca | Funções a preencher, ordem, variações e exigências específicas de cada peça. | Selecionar os fragmentos adequados e tornar visível o que ainda falta. |
+| [Índice da biblioteca de fragmentos](fragmentos.md) | Capítulos por função, com critérios de escolha, cuidados e exemplos autorais. | Localizar uma redação adaptável aos dados do caso. |
+| [Roteiros de composição](fragmentos/roteiros.md) | Funções a preencher, ordem, variações e exigências específicas de cada peça. | Selecionar os fragmentos adequados e tornar visível o que ainda falta. |
 
 Os fragmentos pretendidos são partes de redação de peças e comunicações. Trechos de leis e julgados podem servir de fundamento durante a pesquisa. Uma citação só entra na redação depois da conferência da fonte e de sua pertinência.
 
@@ -95,13 +95,15 @@ A sequência proposta é a seguinte.
 3. Experimentar a composição em situações fictícias. Avaliar se faltam dados, requisitos, fundamentos, variantes ou transições.
 4. Ampliar por famílias e integrar o método às rotinas `pesquisar`, `analisar`, `redigir`, `revisar`, `teses` e `planejar`.
 
-A integração deve preservar o modo econômico e a execução sem auxiliares. O catálogo e os fragmentos podem começar como arquivos de texto versionados, lidos sob demanda. Uma necessidade comprovada de recuperação pode justificar índices depois. O formato de armazenamento ainda não está decidido.
+A biblioteca de estudo adota um índice curto em Markdown e capítulos versionados por função. O agente pode abrir apenas o capítulo necessário. A [ficha editorial e a matriz](fragmentos/curadoria.md) orientam a revisão e a ampliação da cobertura. A integração futura deve preservar essa leitura sob demanda, o modo econômico e a execução sem auxiliares.
 
-O pacote distribui instruções, fontes de consulta e redações autorais revisadas. O perfil permanece reservado às preferências do operador. Casos reais, cache de consultas e credenciais ficam fora dessa distribuição.
+Na integração proposta, o pacote poderá distribuir as fontes de consulta e as redações autorais que passarem por revisão. O perfil permanece reservado às preferências do operador. Casos reais, cache de consultas e credenciais ficam fora dessa distribuição.
 
 ## Critérios propostos para validar a integração
 
 Os cenários abaixo são requisitos de avaliação futura. Sua presença neste documento não significa que um sistema já os executou.
+
+A [validação editorial dos fragmentos](validacao-fragmentos.md) registra a rodada de composição com dados fictícios, os problemas observados e as correções. Esse recorte não substitui os cenários de integração listados a seguir.
 
 - Pesquisar uma questão fictícia com suporte oficial, localizador e tentativa de contraprova identificáveis.
 - Detectar quando duas páginas reproduzem o mesmo fundamento e evitar contá-las como posições independentes.
